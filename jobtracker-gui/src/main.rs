@@ -4,10 +4,13 @@ use strum::IntoEnumIterator;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions::default();
+
+    let mut job_app = JobApp::default();
+    let _ = job_app.store.list_jobs().unwrap();
     eframe::run_native(
         "Job Tracker",
         options,
-        Box::new(|_cc| Ok(Box::new(JobApp::default()))),
+        Box::new(|_cc| Ok(Box::new(job_app))),
     )
 }
 
@@ -38,7 +41,8 @@ impl eframe::App for JobApp {
                     && !self.new_role.is_empty()
                 {
                     self.store
-                        .add_job(self.new_company.clone(), self.new_role.clone());
+                        .add_job(self.new_company.clone(), self.new_role.clone())
+                        .unwrap();
                     self.new_company.clear();
                     self.new_role.clear();
                 }
@@ -46,12 +50,12 @@ impl eframe::App for JobApp {
 
             ui.separator();
 
-            // Track which job to delete after iteration
+            // Track pending actions
             let mut to_remove: Option<usize> = None;
+            let mut to_update: Option<(u32, JobStatus)> = None;
 
             // List jobs
             for (i, job) in self.store.jobs.iter_mut().enumerate() {
-                // Push a unique ID scope for this job
                 ui.push_id(i, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(format!(
@@ -63,15 +67,22 @@ impl eframe::App for JobApp {
                         ));
 
                         // Status dropdown
+                        let mut selected_status = job.status.clone();
                         egui::ComboBox::from_label("Status")
-                            .selected_text(job.status.to_string())
+                            .selected_text(selected_status.to_string())
                             .show_ui(ui, |ui| {
                                 for status in JobStatus::iter() {
-                                    ui.selectable_value(
-                                        &mut job.status,
-                                        status.clone(),
-                                        status.to_string(),
-                                    );
+                                    if ui
+                                        .selectable_value(
+                                            &mut selected_status,
+                                            status.clone(),
+                                            status.to_string(),
+                                        )
+                                        .clicked()
+                                    {
+                                        // Queue update, but don't apply it yet
+                                        to_update = Some((job.id, status));
+                                    }
                                 }
                             });
 
@@ -83,9 +94,12 @@ impl eframe::App for JobApp {
                 });
             }
 
-            // Remove job after iteration to avoid double mutable borrow
+            // Apply updates AFTER the loop to avoid borrow conflicts
+            if let Some((id, new_status)) = to_update {
+                self.store.update_status(id, new_status).unwrap();
+            }
             if let Some(index) = to_remove {
-                self.store.delete_job(index);
+                self.store.delete_job(index).unwrap();
             }
         });
     }

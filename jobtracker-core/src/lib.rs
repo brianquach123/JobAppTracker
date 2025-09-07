@@ -1,7 +1,14 @@
+use anyhow::Error;
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::fs;
+use std::fs::OpenOptions;
+use std::io::Read;
 use strum_macros::EnumIter;
+
+const FILE: &str = "jobtrack.json";
 
 #[derive(EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum JobStatus {
@@ -32,6 +39,7 @@ impl fmt::Display for JobStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job {
+    pub id: u32,
     pub company: String,
     pub role: String,
     pub status: JobStatus,
@@ -39,13 +47,34 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn new(company: String, role: String) -> Self {
+    pub fn new(id: u32, company: String, role: String) -> Self {
         Self {
+            id,
             company,
             role,
             status: JobStatus::Applied,
             timestamp: Utc::now(),
         }
+    }
+}
+
+pub fn save(apps: &[Job]) -> Result<()> {
+    let data = serde_json::to_string_pretty(apps)?;
+    fs::write(FILE, data)?;
+    Ok(())
+}
+
+pub fn load() -> Result<Vec<Job>> {
+    if let Ok(mut file) = OpenOptions::new().read(true).open(FILE) {
+        let mut data = String::new();
+        file.read_to_string(&mut data)?;
+        if data.trim().is_empty() {
+            Ok(vec![])
+        } else {
+            Ok(serde_json::from_str(&data)?)
+        }
+    } else {
+        Ok(vec![])
     }
 }
 
@@ -55,23 +84,31 @@ pub struct JobStore {
 }
 
 impl JobStore {
-    pub fn add_job(&mut self, company: String, role: String) {
-        self.jobs.push(Job::new(company, role));
+    pub fn add_job(&mut self, company: String, role: String) -> Result<Vec<Job>, Error> {
+        let new_job_id = self.jobs.iter().map(|a| a.id).max().unwrap_or(0) + 1;
+        self.jobs.push(Job::new(new_job_id, company, role));
+        save(&self.jobs)?;
+        Ok(self.jobs.clone())
     }
 
-    pub fn list_jobs(&self) -> &[Job] {
-        &self.jobs
+    pub fn list_jobs(&mut self) -> Result<Vec<Job>, Error> {
+        self.jobs = load()?;
+        Ok(self.jobs.clone())
     }
 
-    pub fn delete_job(&mut self, index: usize) {
+    pub fn delete_job(&mut self, index: usize) -> Result<Vec<Job>, Error> {
         if index < self.jobs.len() {
             self.jobs.remove(index);
+            save(&self.jobs)?;
         }
+        Ok(self.jobs.clone())
     }
 
-    pub fn update_status(&mut self, index: usize, new_status: JobStatus) {
-        if let Some(job) = self.jobs.get_mut(index) {
+    pub fn update_status(&mut self, id: u32, new_status: JobStatus) -> Result<Vec<Job>, Error> {
+        if let Some(job) = self.jobs.iter_mut().find(|j| j.id == id) {
             job.status = new_status;
+            save(&self.jobs)?;
         }
+        Ok(self.jobs.clone())
     }
 }
