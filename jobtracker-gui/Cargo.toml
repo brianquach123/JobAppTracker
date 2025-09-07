@@ -6,4 +6,6 @@ edition = "2021"
 [dependencies]
 eframe = "0.28"
 egui = "0.28"
+strum = "0.27.2"
+strum_macros = "0.27.2"
 jobtracker-core = { path = "../jobtracker-core" }

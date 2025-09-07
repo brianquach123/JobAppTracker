@@ -1,5 +1,6 @@
 use eframe::egui;
-use jobtracker_core::JobStore;
+use jobtracker_core::{JobStatus, JobStore};
+use strum::IntoEnumIterator;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions::default();
@@ -9,8 +10,6 @@ fn main() -> eframe::Result<()> {
         Box::new(|_cc| Ok(Box::new(JobApp::default()))),
     )
 }
-
-const STATUSES: [&str; 4] = ["Applied", "Interview", "Offer", "Rejected"];
 
 #[derive(Default)]
 struct JobApp {
@@ -65,19 +64,14 @@ impl eframe::App for JobApp {
 
                         // Status dropdown
                         egui::ComboBox::from_label("Status")
-                            .selected_text(&job.status)
+                            .selected_text(job.status.to_string())
                             .show_ui(ui, |ui| {
-                                for status in &STATUSES {
-                                    if ui
-                                        .selectable_value(
-                                            &mut job.status,
-                                            status.to_string(),
-                                            *status,
-                                        )
-                                        .clicked()
-                                    {
-                                        // update directly
-                                    }
+                                for status in JobStatus::iter() {
+                                    ui.selectable_value(
+                                        &mut job.status,
+                                        status.clone(),
+                                        status.to_string(),
+                                    );
                                 }
                             });
 
