@@ -54,46 +54,50 @@ impl eframe::App for JobApp {
             let mut to_remove: Option<usize> = None;
             let mut to_update: Option<(u32, JobStatus)> = None;
 
-            // List jobs
-            for (i, job) in self.store.jobs.iter_mut().enumerate() {
-                ui.push_id(i, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(format!(
-                            "{}  {}  {}  {}",
-                            job.timestamp.format("%Y-%m-%d %H:%M:%S"),
-                            job.company,
-                            job.role,
-                            job.status,
-                        ));
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    egui::Grid::new("jobs_grid").striped(true).show(ui, |ui| {
+                        // Header row
+                        ui.label("ID");
+                        ui.label("Timestamp");
+                        ui.label("Company");
+                        ui.label("Role");
+                        ui.label("Status");
+                        ui.end_row();
 
-                        // Status dropdown
-                        let mut selected_status = job.status.clone();
-                        egui::ComboBox::from_label("Status")
-                            .selected_text(selected_status.to_string())
-                            .show_ui(ui, |ui| {
-                                for status in JobStatus::iter() {
-                                    if ui
-                                        .selectable_value(
-                                            &mut selected_status,
-                                            status.clone(),
-                                            status.to_string(),
-                                        )
-                                        .clicked()
-                                    {
-                                        // Queue update, but don't apply it yet
-                                        to_update = Some((job.id, status));
+                        for (i, job) in self.store.jobs.iter_mut().enumerate() {
+                            ui.label(job.id.to_string());
+                            ui.label(job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string());
+                            ui.label(&job.company);
+                            ui.label(&job.role);
+
+                            let mut selected_status = job.status.clone();
+                            egui::ComboBox::from_id_source(i)
+                                .selected_text(selected_status.to_string())
+                                .show_ui(ui, |ui| {
+                                    for status in JobStatus::iter() {
+                                        if ui
+                                            .selectable_value(
+                                                &mut selected_status,
+                                                status.clone(),
+                                                status.to_string(),
+                                            )
+                                            .clicked()
+                                        {
+                                            to_update = Some((job.id, status));
+                                        }
                                     }
-                                }
-                            });
+                                });
 
-                        // Delete button
-                        if ui.button("Delete").clicked() {
-                            to_remove = Some(i);
+                            if ui.button("Delete").clicked() {
+                                to_remove = Some(i);
+                            }
+
+                            ui.end_row();
                         }
                     });
                 });
-            }
-
             // Apply updates AFTER the loop to avoid borrow conflicts
             if let Some((id, new_status)) = to_update {
                 self.store.update_status(id, new_status).unwrap();
