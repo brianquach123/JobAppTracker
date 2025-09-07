@@ -1,9 +1,6 @@
-use crate::egui::Color32;
-use chrono::{Datelike, Weekday};
 use eframe::egui;
-use egui_plot::{Bar, BarChart, Plot};
+use egui_plot::PlotPoint;
 use jobtracker_core::{JobStatus, JobStore};
-use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 fn main() -> eframe::Result<()> {
@@ -29,10 +26,11 @@ impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Job Application Tracker");
-
             ui.separator();
 
+            // ----------------------------
             // Add new job form
+            // ----------------------------
             ui.horizontal(|ui| {
                 ui.label("Company:");
                 ui.text_edit_singleline(&mut self.new_company);
@@ -54,51 +52,60 @@ impl eframe::App for JobApp {
 
             ui.separator();
 
-            // Weekly bar chart
+            // ----------------------------
+            // Weekly bar chart (last 7 days)
+            // ----------------------------
             {
-                let mut counts: HashMap<Weekday, usize> = HashMap::new();
+                use chrono::{Duration, Local, NaiveDate};
+                use eframe::egui::Color32;
+                use egui_plot::{Bar, BarChart, Plot, Text};
+                use std::collections::HashMap;
+
+                let today = Local::now().date_naive();
+                let last_7_days: Vec<NaiveDate> = (0..7)
+                    .rev() // oldest day first
+                    .map(|i| today - Duration::days(i))
+                    .collect();
+
+                // Count jobs per day
+                let mut counts: HashMap<NaiveDate, usize> = HashMap::new();
                 for job in &self.store.jobs {
-                    let ts = job.timestamp.with_timezone(&chrono::Local);
-                    let weekday = ts.weekday();
-                    *counts.entry(weekday).or_default() += 1;
+                    let job_date = job.timestamp.with_timezone(&Local).date_naive();
+                    if last_7_days.contains(&job_date) {
+                        *counts.entry(job_date).or_default() += 1;
+                    }
                 }
 
-                let week_days = [
-                    Weekday::Mon,
-                    Weekday::Tue,
-                    Weekday::Wed,
-                    Weekday::Thu,
-                    Weekday::Fri,
-                    Weekday::Sat,
-                    Weekday::Sun,
-                ];
-
-                let values: Vec<(f64, f64)> = week_days
+                // Prepare values for plotting
+                let values: Vec<(f64, f64)> = last_7_days
                     .iter()
                     .enumerate()
-                    .map(|(i, day)| (i as f64, *counts.get(day).unwrap_or(&0) as f64))
+                    .map(|(i, date)| (i as f64, *counts.get(date).unwrap_or(&0) as f64))
                     .collect();
 
-                // Prepare bars
                 let bars: Vec<Bar> = values
                     .iter()
-                    .map(|&(x, y)| {
-                        Bar::new(x, y).fill(Color32::from_rgb(100, 150, 250)) // set color per bar
-                    })
+                    .map(|&(x, y)| Bar::new(x, y).fill(Color32::from_rgb(100, 150, 250)))
                     .collect();
 
-                // Create the chart
                 let chart = BarChart::new(bars).width(0.6);
 
-                // Show it
                 Plot::new("weekly_jobs").height(150.0).show(ui, |plot_ui| {
                     plot_ui.bar_chart(chart);
+
+                    // Optional: add x-axis labels (MM-DD)
+                    for (i, date) in last_7_days.iter().enumerate() {
+                        let label = date.format("%m-%d").to_string();
+                        plot_ui.text(Text::new(PlotPoint::new(i as f64, -0.5), label));
+                    }
                 });
             }
 
             ui.separator();
 
-            // Track pending actions
+            // ----------------------------
+            // Scrollable job list grid
+            // ----------------------------
             let mut to_remove: Option<usize> = None;
             let mut to_update: Option<(u32, JobStatus)> = None;
 
@@ -146,7 +153,8 @@ impl eframe::App for JobApp {
                         }
                     });
                 });
-            // Apply updates AFTER the loop to avoid borrow conflicts
+
+            // Apply pending updates AFTER the loop
             if let Some((id, new_status)) = to_update {
                 self.store.update_status(id, new_status).unwrap();
             }
