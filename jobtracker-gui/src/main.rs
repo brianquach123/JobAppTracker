@@ -1,5 +1,9 @@
+use crate::egui::Color32;
+use chrono::{Datelike, Weekday};
 use eframe::egui;
+use egui_plot::{Bar, BarChart, Plot};
 use jobtracker_core::{JobStatus, JobStore};
+use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 fn main() -> eframe::Result<()> {
@@ -47,6 +51,50 @@ impl eframe::App for JobApp {
                     self.new_role.clear();
                 }
             });
+
+            ui.separator();
+
+            // Weekly bar chart
+            {
+                let mut counts: HashMap<Weekday, usize> = HashMap::new();
+                for job in &self.store.jobs {
+                    let ts = job.timestamp.with_timezone(&chrono::Local);
+                    let weekday = ts.weekday();
+                    *counts.entry(weekday).or_default() += 1;
+                }
+
+                let week_days = [
+                    Weekday::Mon,
+                    Weekday::Tue,
+                    Weekday::Wed,
+                    Weekday::Thu,
+                    Weekday::Fri,
+                    Weekday::Sat,
+                    Weekday::Sun,
+                ];
+
+                let values: Vec<(f64, f64)> = week_days
+                    .iter()
+                    .enumerate()
+                    .map(|(i, day)| (i as f64, *counts.get(day).unwrap_or(&0) as f64))
+                    .collect();
+
+                // Prepare bars
+                let bars: Vec<Bar> = values
+                    .iter()
+                    .map(|&(x, y)| {
+                        Bar::new(x, y).fill(Color32::from_rgb(100, 150, 250)) // set color per bar
+                    })
+                    .collect();
+
+                // Create the chart
+                let chart = BarChart::new(bars).width(0.6);
+
+                // Show it
+                Plot::new("weekly_jobs").height(150.0).show(ui, |plot_ui| {
+                    plot_ui.bar_chart(chart);
+                });
+            }
 
             ui.separator();
 
