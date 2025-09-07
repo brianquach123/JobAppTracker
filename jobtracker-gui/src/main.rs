@@ -10,28 +10,19 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+const STATUSES: [&str; 4] = ["Applied", "Interview", "Offer", "Rejected"];
+
+#[derive(Default)]
 struct JobApp {
     store: JobStore,
     new_company: String,
     new_role: String,
-    status_options: Vec<&'static str>,
-}
-
-impl Default for JobApp {
-    fn default() -> Self {
-        Self {
-            store: JobStore::default(),
-            new_company: String::new(),
-            new_role: String::new(),
-            status_options: vec!["Applied", "Interview", "Offer", "Rejected"],
-        }
-    }
 }
 
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Job Applications");
+            ui.heading("Job Application Tracker");
 
             ui.separator();
 
@@ -61,27 +52,40 @@ impl eframe::App for JobApp {
 
             // List jobs
             for (i, job) in self.store.jobs.iter_mut().enumerate() {
-                ui.horizontal(|ui| {
-                    ui.label(format!("{} - {}", job.company, job.role));
+                // Push a unique ID scope for this job
+                ui.push_id(i, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(format!(
+                            "{}  {}  {}  {}",
+                            job.timestamp.format("%Y-%m-%d %H:%M:%S"),
+                            job.company,
+                            job.role,
+                            job.status,
+                        ));
 
-                    // Status dropdown modifies job directly
-                    egui::ComboBox::from_label("Status")
-                        .selected_text(&job.status)
-                        .show_ui(ui, |ui| {
-                            for status in &self.status_options {
-                                if ui
-                                    .selectable_value(&mut job.status, status.to_string(), *status)
-                                    .clicked()
-                                {
-                                    // job.status updated directly, no extra borrow
+                        // Status dropdown
+                        egui::ComboBox::from_label("Status")
+                            .selected_text(&job.status)
+                            .show_ui(ui, |ui| {
+                                for status in &STATUSES {
+                                    if ui
+                                        .selectable_value(
+                                            &mut job.status,
+                                            status.to_string(),
+                                            *status,
+                                        )
+                                        .clicked()
+                                    {
+                                        // update directly
+                                    }
                                 }
-                            }
-                        });
+                            });
 
-                    // Mark for deletion
-                    if ui.button("Delete").clicked() {
-                        to_remove = Some(i);
-                    }
+                        // Delete button
+                        if ui.button("Delete").clicked() {
+                            to_remove = Some(i);
+                        }
+                    });
                 });
             }
 

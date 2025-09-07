@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -5,6 +6,7 @@ pub struct Job {
     pub company: String,
     pub role: String,
     pub status: String,
+    pub timestamp: DateTime<Utc>,
 }
 
 impl Job {
@@ -13,6 +15,7 @@ impl Job {
             company,
             role,
             status: "Applied".to_string(),
+            timestamp: Utc::now(),
         }
     }
 }
