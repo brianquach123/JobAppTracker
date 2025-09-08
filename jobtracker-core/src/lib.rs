@@ -42,7 +42,7 @@ pub struct Job {
     pub id: u32,
     pub company: String,
     pub role: String,
-    pub role_location: String,
+    pub role_location: Option<String>,
     pub status: JobStatus,
     pub timestamp: DateTime<Utc>,
 }
@@ -53,7 +53,7 @@ impl Job {
             id,
             company,
             role,
-            role_location: new_role_location,
+            role_location: Some(new_role_location),
             status: JobStatus::Applied,
             timestamp: Utc::now(),
         }
@@ -71,11 +71,14 @@ pub fn load() -> Result<Vec<Job>> {
         let mut data = String::new();
         file.read_to_string(&mut data)?;
         if data.trim().is_empty() {
+            println!("Got empty data from file");
             Ok(vec![])
         } else {
+            println!("Got data, deserializing");
             Ok(serde_json::from_str(&data)?)
         }
     } else {
+        println!("Error opening data file");
         Ok(vec![])
     }
 }

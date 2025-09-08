@@ -153,6 +153,7 @@ impl eframe::App for JobApp {
                         ui.add_sized([col_widths[1], 20.0], egui::Label::new("Timestamp"));
                         ui.add_sized([col_widths[2], 20.0], egui::Label::new("Company"));
                         ui.add_sized([col_widths[3], 20.0], egui::Label::new("Role"));
+                        ui.add_sized([col_widths[4], 20.0], egui::Label::new("Location"));
                         ui.add_sized([col_widths[4], 20.0], egui::Label::new("Status"));
                         ui.add_sized([col_widths[5], 20.0], egui::Label::new("Action"));
                         ui.end_row();
@@ -183,6 +184,12 @@ impl eframe::App for JobApp {
                             );
                             ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
                             ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
+                            ui.add_sized(
+                                [col_widths[4], 20.0],
+                                egui::Label::new(
+                                    job.role_location.clone().unwrap_or("N/A".to_string()),
+                                ),
+                            );
 
                             let mut selected_status = job.status.clone();
                             egui::ComboBox::from_id_source(i)
