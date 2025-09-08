@@ -122,4 +122,16 @@ impl JobStore {
         }
         Ok(self.jobs.clone())
     }
+
+    pub fn update_timestamp(
+        &mut self,
+        id: u32,
+        new_timestamp: DateTime<Utc>,
+    ) -> Result<Vec<Job>, Error> {
+        if let Some(job) = self.jobs.iter_mut().find(|j| j.id == id) {
+            job.timestamp = new_timestamp;
+            save(&self.jobs)?;
+        }
+        Ok(self.jobs.clone())
+    }
 }

@@ -1,3 +1,4 @@
+use chrono::TimeZone;
 use eframe::egui::{self, TextEdit};
 use egui_plot::PlotPoint;
 use jobtracker_core::{JobStatus, JobStore};
@@ -27,6 +28,7 @@ struct JobApp {
     new_role: String,
     new_role_location: String,
     search_text: String,
+    edit_timestamps: std::collections::HashMap<u32, String>,
 }
 
 impl eframe::App for JobApp {
@@ -146,14 +148,14 @@ impl eframe::App for JobApp {
             // Scrollable job list grid
             // ----------------------------
             let mut to_remove: Option<usize> = None;
-            let mut to_update: Option<(u32, JobStatus)> = None;
+            let mut to_update_status: Option<(u32, JobStatus)> = None;
+            let mut to_update_timestamp: Option<(u32, chrono::DateTime<chrono::Local>)> = None;
 
-            egui::ScrollArea::vertical()
+            egui::ScrollArea::both()
                 .auto_shrink([false; 2])
                 .show(ui, |ui| {
                     egui::Grid::new("jobs_grid").striped(true).show(ui, |ui| {
-                        // Define widths for each column
-                        let col_widths = [50.0, 140.0, 120.0, 120.0, 100.0, 60.0];
+                        let col_widths = [50.0, 180.0, 120.0, 120.0, 100.0, 100.0, 60.0];
 
                         // Header row
                         ui.add_sized([col_widths[0], 20.0], egui::Label::new("ID"));
@@ -161,11 +163,11 @@ impl eframe::App for JobApp {
                         ui.add_sized([col_widths[2], 20.0], egui::Label::new("Company"));
                         ui.add_sized([col_widths[3], 20.0], egui::Label::new("Role"));
                         ui.add_sized([col_widths[4], 20.0], egui::Label::new("Location"));
-                        ui.add_sized([col_widths[4], 20.0], egui::Label::new("Status"));
-                        ui.add_sized([col_widths[5], 20.0], egui::Label::new("Action"));
+                        ui.add_sized([col_widths[5], 20.0], egui::Label::new("Status"));
+                        ui.add_sized([col_widths[6], 20.0], egui::Label::new("Action"));
                         ui.end_row();
 
-                        // Filter jobs
+                        // Rows
                         for (i, job) in self
                             .store
                             .jobs
@@ -183,12 +185,31 @@ impl eframe::App for JobApp {
                                 [col_widths[0], 20.0],
                                 egui::Label::new(job.id.to_string()),
                             );
-                            ui.add_sized(
-                                [col_widths[1], 20.0],
-                                egui::Label::new(
-                                    job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                ),
-                            );
+
+                            // ---- Editable timestamp ----
+                            let ts_entry =
+                                self.edit_timestamps.entry(job.id).or_insert_with(|| {
+                                    job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()
+                                });
+
+                            if ui
+                                .add_sized([col_widths[1], 20.0], TextEdit::singleline(ts_entry))
+                                .lost_focus()
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                            {
+                                if let Ok(parsed) = chrono::NaiveDateTime::parse_from_str(
+                                    ts_entry,
+                                    "%Y-%m-%d %H:%M:%S",
+                                ) {
+                                    if let chrono::LocalResult::Single(parsed_dt) =
+                                        chrono::Local.from_local_datetime(&parsed)
+                                    {
+                                        to_update_timestamp = Some((job.id, parsed_dt));
+                                    }
+                                }
+                            }
+
+                            // ---- Company / Role / Location ----
                             ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
                             ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
                             ui.add_sized(
@@ -198,6 +219,7 @@ impl eframe::App for JobApp {
                                 ),
                             );
 
+                            // ---- Status dropdown ----
                             let mut selected_status = job.status.clone();
                             egui::ComboBox::from_id_source(i)
                                 .selected_text(selected_status.to_string())
@@ -211,11 +233,12 @@ impl eframe::App for JobApp {
                                             )
                                             .clicked()
                                         {
-                                            to_update = Some((job.id, status));
+                                            to_update_status = Some((job.id, status));
                                         }
                                     }
                                 });
 
+                            // ---- Delete button ----
                             if ui.button("Delete").clicked() {
                                 to_remove = Some(i);
                             }
@@ -225,9 +248,17 @@ impl eframe::App for JobApp {
                     });
                 });
 
-            // Apply pending updates AFTER the loop
-            if let Some((id, new_status)) = to_update {
+            // ----------------------------
+            // Apply updates
+            // ----------------------------
+            if let Some((id, new_status)) = to_update_status {
                 self.store.update_status(id, new_status).unwrap();
+            }
+            if let Some((id, new_ts)) = to_update_timestamp {
+                self.store.update_timestamp(id, new_ts.into()).unwrap();
+                if let Some(ts_text) = self.edit_timestamps.get_mut(&id) {
+                    *ts_text = new_ts.format("%Y-%m-%d %H:%M:%S").to_string();
+                }
             }
             if let Some(index) = to_remove {
                 self.store.delete_job(index).unwrap();
