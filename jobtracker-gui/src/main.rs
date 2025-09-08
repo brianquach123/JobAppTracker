@@ -1,4 +1,4 @@
-use chrono::TimeZone;
+use chrono::{Local, NaiveDateTime, TimeZone};
 use eframe::egui::{self, TextEdit};
 use egui_plot::PlotPoint;
 use jobtracker_core::{JobStatus, JobStore};
@@ -192,19 +192,21 @@ impl eframe::App for JobApp {
                                     job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()
                                 });
 
-                            if ui
-                                .add_sized([col_widths[1], 20.0], TextEdit::singleline(ts_entry))
-                                .lost_focus()
-                                && ui.input(|i| i.key_pressed(egui::Key::Enter))
-                            {
-                                if let Ok(parsed) = chrono::NaiveDateTime::parse_from_str(
-                                    ts_entry,
-                                    "%Y-%m-%d %H:%M:%S",
-                                ) {
-                                    if let chrono::LocalResult::Single(parsed_dt) =
-                                        chrono::Local.from_local_datetime(&parsed)
+                            let response =
+                                ui.add_sized([col_widths[1], 20.0], TextEdit::singleline(ts_entry));
+
+                            let pressed_enter = response.has_focus()
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+                            if response.lost_focus() || pressed_enter {
+                                if let Ok(parsed) =
+                                    NaiveDateTime::parse_from_str(ts_entry, "%Y-%m-%d %H:%M:%S")
+                                {
+                                    if let chrono::LocalResult::Single(local_dt) =
+                                        Local.from_local_datetime(&parsed)
                                     {
-                                        to_update_timestamp = Some((job.id, parsed_dt));
+                                        // defer update
+                                        to_update_timestamp = Some((job.id, local_dt));
                                     }
                                 }
                             }
@@ -256,6 +258,8 @@ impl eframe::App for JobApp {
             }
             if let Some((id, new_ts)) = to_update_timestamp {
                 self.store.update_timestamp(id, new_ts.into()).unwrap();
+
+                // update the edit buffer so it shows canonical formatting
                 if let Some(ts_text) = self.edit_timestamps.get_mut(&id) {
                     *ts_text = new_ts.format("%Y-%m-%d %H:%M:%S").to_string();
                 }
