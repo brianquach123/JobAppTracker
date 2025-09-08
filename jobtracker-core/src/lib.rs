@@ -10,7 +10,7 @@ use strum_macros::EnumIter;
 
 const FILE: &str = "jobtrack.json";
 
-#[derive(EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum JobStatus {
     Applied,
     Interview,
