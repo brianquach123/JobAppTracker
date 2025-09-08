@@ -1,4 +1,4 @@
-use eframe::egui;
+use eframe::egui::{self, TextEdit};
 use egui_plot::PlotPoint;
 use jobtracker_core::{JobStatus, JobStore};
 use strum::IntoEnumIterator;
@@ -20,12 +20,21 @@ struct JobApp {
     store: JobStore,
     new_company: String,
     new_role: String,
+    search_text: String,
 }
 
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Job Application Tracker");
+            ui.separator();
+
+            // Search box
+            ui.horizontal(|ui| {
+                ui.label("Search by company:");
+                ui.add(TextEdit::singleline(&mut self.search_text));
+            });
+
             ui.separator();
 
             // ----------------------------
@@ -121,7 +130,20 @@ impl eframe::App for JobApp {
                         ui.label("Status");
                         ui.end_row();
 
-                        for (i, job) in self.store.jobs.iter_mut().enumerate() {
+                        // Filter jobs
+                        for (i, job) in self
+                            .store
+                            .jobs
+                            .iter_mut()
+                            .filter(|job| {
+                                self.search_text.is_empty()
+                                    || job
+                                        .company
+                                        .to_lowercase()
+                                        .contains(&self.search_text.to_lowercase())
+                            })
+                            .enumerate()
+                        {
                             ui.label(job.id.to_string());
                             ui.label(job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string());
                             ui.label(&job.company);
