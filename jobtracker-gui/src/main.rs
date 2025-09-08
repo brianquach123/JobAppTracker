@@ -20,6 +20,7 @@ struct JobApp {
     store: JobStore,
     new_company: String,
     new_role: String,
+    new_role_location: String,
     search_text: String,
 }
 
@@ -36,7 +37,6 @@ impl eframe::App for JobApp {
 
                 // Refresh button
                 if ui.add(egui::Button::new("Refresh")).clicked() {
-                    println!("PRessed");
                     let _ = self.store.list_jobs();
                 }
             });
@@ -47,21 +47,38 @@ impl eframe::App for JobApp {
             // Add new job form
             // ----------------------------
             ui.horizontal(|ui| {
+                let text_width = 150.0; // pick a consistent width
+
                 ui.label("Company:");
-                ui.text_edit_singleline(&mut self.new_company);
+                ui.add_sized(
+                    [text_width, 20.0],
+                    TextEdit::singleline(&mut self.new_company),
+                );
 
                 ui.label("Role:");
-                ui.text_edit_singleline(&mut self.new_role);
+                ui.add_sized([text_width, 20.0], TextEdit::singleline(&mut self.new_role));
+
+                ui.label("Location:");
+                ui.add_sized(
+                    [text_width, 20.0],
+                    TextEdit::singleline(&mut self.new_role_location),
+                );
 
                 if ui.button("Add").clicked()
                     && !self.new_company.is_empty()
                     && !self.new_role.is_empty()
+                    && !self.new_role_location.is_empty()
                 {
                     self.store
-                        .add_job(self.new_company.clone(), self.new_role.clone())
+                        .add_job(
+                            self.new_company.clone(),
+                            self.new_role.clone(),
+                            self.new_role_location.clone(),
+                        )
                         .unwrap();
                     self.new_company.clear();
                     self.new_role.clear();
+                    self.new_role_location.clear();
                 }
             });
 
@@ -128,12 +145,16 @@ impl eframe::App for JobApp {
                 .auto_shrink([false; 2])
                 .show(ui, |ui| {
                     egui::Grid::new("jobs_grid").striped(true).show(ui, |ui| {
+                        // Define widths for each column
+                        let col_widths = [50.0, 140.0, 120.0, 120.0, 100.0, 60.0];
+
                         // Header row
-                        ui.label("ID");
-                        ui.label("Timestamp");
-                        ui.label("Company");
-                        ui.label("Role");
-                        ui.label("Status");
+                        ui.add_sized([col_widths[0], 20.0], egui::Label::new("ID"));
+                        ui.add_sized([col_widths[1], 20.0], egui::Label::new("Timestamp"));
+                        ui.add_sized([col_widths[2], 20.0], egui::Label::new("Company"));
+                        ui.add_sized([col_widths[3], 20.0], egui::Label::new("Role"));
+                        ui.add_sized([col_widths[4], 20.0], egui::Label::new("Status"));
+                        ui.add_sized([col_widths[5], 20.0], egui::Label::new("Action"));
                         ui.end_row();
 
                         // Filter jobs
@@ -150,10 +171,18 @@ impl eframe::App for JobApp {
                             })
                             .enumerate()
                         {
-                            ui.label(job.id.to_string());
-                            ui.label(job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string());
-                            ui.label(&job.company);
-                            ui.label(&job.role);
+                            ui.add_sized(
+                                [col_widths[0], 20.0],
+                                egui::Label::new(job.id.to_string()),
+                            );
+                            ui.add_sized(
+                                [col_widths[1], 20.0],
+                                egui::Label::new(
+                                    job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                ),
+                            );
+                            ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
+                            ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
 
                             let mut selected_status = job.status.clone();
                             egui::ComboBox::from_id_source(i)

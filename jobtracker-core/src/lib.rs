@@ -42,16 +42,18 @@ pub struct Job {
     pub id: u32,
     pub company: String,
     pub role: String,
+    pub role_location: String,
     pub status: JobStatus,
     pub timestamp: DateTime<Utc>,
 }
 
 impl Job {
-    pub fn new(id: u32, company: String, role: String) -> Self {
+    pub fn new(id: u32, company: String, role: String, new_role_location: String) -> Self {
         Self {
             id,
             company,
             role,
+            role_location: new_role_location,
             status: JobStatus::Applied,
             timestamp: Utc::now(),
         }
@@ -84,9 +86,15 @@ pub struct JobStore {
 }
 
 impl JobStore {
-    pub fn add_job(&mut self, company: String, role: String) -> Result<Vec<Job>, Error> {
+    pub fn add_job(
+        &mut self,
+        company: String,
+        role: String,
+        new_role_location: String,
+    ) -> Result<Vec<Job>, Error> {
         let new_job_id = self.jobs.iter().map(|a| a.id).max().unwrap_or(0) + 1;
-        self.jobs.push(Job::new(new_job_id, company, role));
+        self.jobs
+            .push(Job::new(new_job_id, company, role, new_role_location));
         save(&self.jobs)?;
         Ok(self.jobs.clone())
     }

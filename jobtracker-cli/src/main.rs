@@ -8,7 +8,8 @@ fn main() {
     if args.len() > 2 && args[1] == "add" {
         let company = args[2].clone();
         let role = args.get(3).unwrap_or(&"Unknown".to_string()).clone();
-        let _ = store.add_job(company, role);
+        let location = args.get(4).unwrap_or(&"Unknown".to_string()).clone();
+        let _ = store.add_job(company, role, location);
         println!("Job added!");
     }
 
