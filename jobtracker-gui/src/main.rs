@@ -4,7 +4,12 @@ use jobtracker_core::{JobStatus, JobStore};
 use strum::IntoEnumIterator;
 
 fn main() -> eframe::Result<()> {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1000.0, 600.0])
+            .with_resizable(true),
+        ..Default::default()
+    };
 
     let mut job_app = JobApp::default();
     let _ = job_app.store.list_jobs().unwrap();
@@ -92,6 +97,8 @@ impl eframe::App for JobApp {
                 use eframe::egui::Color32;
                 use egui_plot::{Bar, BarChart, Plot, Text};
                 use std::collections::HashMap;
+
+                ui.label("# of Applications:");
 
                 let today = Local::now().date_naive();
                 let last_7_days: Vec<NaiveDate> = (0..7)
