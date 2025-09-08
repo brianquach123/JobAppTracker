@@ -29,10 +29,16 @@ impl eframe::App for JobApp {
             ui.heading("Job Application Tracker");
             ui.separator();
 
-            // Search box
             ui.horizontal(|ui| {
+                // Search box
                 ui.label("Search by company:");
                 ui.add(TextEdit::singleline(&mut self.search_text));
+
+                // Refresh button
+                if ui.add(egui::Button::new("Refresh")).clicked() {
+                    println!("PRessed");
+                    let _ = self.store.list_jobs();
+                }
             });
 
             ui.separator();
