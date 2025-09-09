@@ -163,7 +163,7 @@ impl eframe::App for JobApp {
             // Weekly bar chart (last 7 days)
             // ----------------------------
             let today = Utc::now();
-            let last_7_days: Vec<DateTime<Utc>> = (0..7)
+            let last_7_days: Vec<DateTime<Utc>> = (0..10)
                 .rev() // oldest day first
                 .map(|i| today - Duration::days(i))
                 .collect();
@@ -203,12 +203,14 @@ impl eframe::App for JobApp {
                             let x_position = date_idx as f64;
 
                             // Create a bar for this date with height = number of jobs
-                            let bar = Bar::new(x_position, jobs.len() as f64)
-                                .width(0.8)
-                                .fill(Color32::from_rgb(65, 105, 225)) // Royal blue
-                                .name(date.format("%Y-%m-%d").to_string());
-
-                            plot_ui.bar_chart(BarChart::new(vec![bar]));
+                            for (k, j) in jobs.iter().enumerate() {
+                                let bar = Bar::new(x_position, 1 as f64)
+                                    .width(0.8)
+                                    .base_offset(k as f64) // offset to stack values
+                                    .fill(j.get_status_color_mapping())
+                                    .name(date.format("%Y-%m-%d").to_string());
+                                plot_ui.bar_chart(BarChart::new(vec![bar]));
+                            }
 
                             // Add date label below the bar
                             plot_ui.text(

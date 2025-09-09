@@ -1,6 +1,7 @@
 use anyhow::Error;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use eframe::egui::Color32;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs;
@@ -56,6 +57,15 @@ impl Job {
             role_location: Some(new_role_location),
             status: JobStatus::Applied,
             timestamp: Utc::now(),
+        }
+    }
+
+    pub fn get_status_color_mapping(&self) -> Color32 {
+        match self.status {
+            JobStatus::Applied => Color32::from_rgb(65, 105, 225),
+            JobStatus::Interview => Color32::from_rgb(0, 255, 255),
+            JobStatus::Offer => Color32::from_rgb(0, 255, 0),
+            JobStatus::Rejected => Color32::from_rgb(255, 0, 0),
         }
     }
 }
