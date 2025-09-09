@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use chrono::{Local, NaiveDateTime, TimeZone};
-use eframe::egui::{Color32, Stroke};
 use eframe::egui::{self, TextEdit};
+use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
 use jobtracker_core::{Job, JobStatus, JobStore};
@@ -19,25 +19,6 @@ fn main() -> eframe::Result<()> {
     let mut job_app = JobApp::default();
     let _ = job_app.store.list_jobs().unwrap();
 
-    // Tinkering with new stacked graphing logic
-    // TODO this needs to be the set of Jobs for each day
-    // ex) 9/9/25 = [Job1, Job2,...] all jobs whose timestamp fall in this day
-    job_app.data = vec![
-        vec![30.0, 45.0, 25.0, 60.0],
-        vec![20.0, 35.0, 40.0, 30.0],
-        vec![15.0, 25.0, 20.0, 40.0],
-    ];
-    job_app.group_names = vec![
-        "Q1".to_string(),
-        "Q2".to_string(),
-        "Q3".to_string(),
-        "Q4".to_string(),
-    ];
-    job_app.category_names = vec![
-        "Product A".to_string(),
-        "Product B".to_string(),
-        "Product C".to_string(),
-    ];
     eframe::run_native(
         "Job Tracker",
         options,
@@ -53,11 +34,6 @@ struct JobApp {
     new_role_location: String,
     search_text: String,
     edit_timestamps: std::collections::HashMap<u32, String>,
-
-    // Tinkering with new stacked graphing logic
-    pub data: Vec<Vec<f64>>,
-    pub group_names: Vec<String>,
-    pub category_names: Vec<String>,
 }
 
 impl eframe::App for JobApp {
@@ -206,7 +182,7 @@ impl eframe::App for JobApp {
                                     .width(0.8)
                                     .base_offset(k as f64) // offset to stack values
                                     .fill(j.get_status_color_mapping())
-                                    .stroke(Stroke{
+                                    .stroke(Stroke {
                                         width: 0.3,
                                         color: Color32::from_rgb(0, 0, 0),
                                     })
