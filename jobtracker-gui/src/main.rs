@@ -39,7 +39,7 @@ impl eframe::App for JobApp {
 
             ui.horizontal(|ui| {
                 // Search box
-                ui.label("Search by company:");
+                ui.label("Search:");
                 ui.add(TextEdit::singleline(&mut self.search_text));
 
                 // Refresh button
@@ -206,16 +206,22 @@ impl eframe::App for JobApp {
                         ui.end_row();
 
                         // Rows
+                        let search_text = self.search_text.to_lowercase();
                         for (i, job) in self
                             .store
                             .jobs
-                            .iter_mut()
+                            .iter()
                             .filter(|job| {
-                                self.search_text.is_empty()
+                                search_text.is_empty()
+                                    || job.company.to_lowercase().contains(&search_text)
+                                    || job.role.to_lowercase().contains(&search_text)
+                                    || job.status.to_string().to_lowercase().contains(&search_text)
                                     || job
-                                        .company
+                                        .role_location
+                                        .clone()
+                                        .unwrap_or_default()
                                         .to_lowercase()
-                                        .contains(&self.search_text.to_lowercase())
+                                        .contains(&search_text)
                             })
                             .enumerate()
                         {
