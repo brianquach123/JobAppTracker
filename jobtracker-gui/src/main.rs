@@ -213,6 +213,47 @@ impl eframe::App for JobApp {
                         }
                     }
                 });
+            // ----------------------------
+            // Bar Chart Legend
+            // ----------------------------
+            ui.label("Legend:");
+            ui.horizontal(|ui| {
+                // Color indicator
+                ui.painter().rect_filled(
+                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                    2.0,
+                    Color32::from_rgb(65, 105, 225),
+                );
+                ui.add_space(20.0);
+                ui.label("Applied".to_string());
+                ui.add_space(10.0);
+
+                ui.painter().rect_filled(
+                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                    2.0,
+                    Color32::from_rgb(0, 255, 255),
+                );
+                ui.add_space(20.0);
+                ui.label("Interview".to_string());
+                ui.add_space(10.0);
+
+                ui.painter().rect_filled(
+                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                    2.0,
+                    Color32::from_rgb(0, 255, 0),
+                );
+                ui.add_space(20.0);
+                ui.label("Offer".to_string());
+
+                ui.painter().rect_filled(
+                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                    2.0,
+                    Color32::from_rgb(255, 0, 0),
+                );
+                ui.add_space(20.0);
+                ui.label("Rejected".to_string());
+                ui.add_space(10.0);
+            });
             ui.separator();
 
             // ----------------------------
