@@ -20,7 +20,7 @@ fn main() -> eframe::Result<()> {
     let _ = job_app.store.list_jobs().unwrap();
 
     eframe::run_native(
-        "Job Tracker",
+        "Job Application Tracker",
         options,
         Box::new(|_cc| Ok(Box::new(job_app))),
     )
