@@ -90,7 +90,45 @@ impl eframe::App for JobApp {
             });
 
             ui.separator();
+            // ----------------------------
+            // Summary stats
+            // ----------------------------
+            let total_jobs = self.store.jobs.len();
 
+            let rejected_jobs = self
+                .store
+                .jobs
+                .iter()
+                .filter(|job| job.status == JobStatus::Rejected)
+                .count();
+
+            let in_progress_jobs = self
+                .store
+                .jobs
+                .iter()
+                .filter(|job| {
+                    job.status == JobStatus::Applied || job.status == JobStatus::Interview
+                })
+                .count();
+
+            let job_offers = self
+                .store
+                .jobs
+                .iter()
+                .filter(|job| job.status == JobStatus::Offer)
+                .count();
+
+            ui.horizontal(|ui| {
+                ui.label(format!("Total Applications: {}", total_jobs));
+                ui.add_space(20.0);
+                ui.label(format!("In progress: {}", in_progress_jobs));
+                ui.add_space(20.0);
+                ui.label(format!("Rejected: {}", rejected_jobs));
+                ui.add_space(20.0);
+                ui.label(format!("Offers: {}", job_offers));
+            });
+
+            ui.separator();
             // ----------------------------
             // Weekly bar chart (last 7 days)
             // ----------------------------
@@ -187,43 +225,30 @@ impl eframe::App for JobApp {
                             );
 
                             // ---- Editable timestamp ----
-                            use eframe::egui::{Color32, TextEdit, TextStyle};
-                            let ts_entry = self
-                                .edit_timestamps
-                                .entry(job.id)
-                                .or_insert_with(|| job.timestamp.format("%Y-%m-%d").to_string());
+                            let ts_entry =
+                                self.edit_timestamps.entry(job.id).or_insert_with(|| {
+                                    job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()
+                                });
 
-                            // Compute desired width of text
-                            let text_width = ui.fonts(|fonts| {
-                                let font_id = TextStyle::Body.resolve(ui.style());
-                                let galley =
-                                    fonts.layout_no_wrap(ts_entry.clone(), font_id, Color32::BLACK);
-                                galley.size().x + 10.0
-                            });
+                            let response =
+                                ui.add_sized([col_widths[1], 20.0], TextEdit::singleline(ts_entry));
 
-                            // Compute horizontal offset to center in column
-                            let col_width = col_widths[1]; // "Date Applied" column width
-                            let left_padding = ((col_width - text_width).max(0.0)) / 2.0;
+                            let pressed_enter = response.has_focus()
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
-                            ui.horizontal(|ui| {
-                                ui.add_space(left_padding); // center horizontally
-                                let response = ui
-                                    .add_sized([text_width, 20.0], TextEdit::singleline(ts_entry));
-
-                                let pressed_enter = response.has_focus()
-                                    && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                                if response.lost_focus() || pressed_enter {
-                                    if let Ok(parsed) =
-                                        NaiveDateTime::parse_from_str(ts_entry, "%Y-%m-%d")
+                            if response.lost_focus() || pressed_enter {
+                                if let Ok(parsed) =
+                                    NaiveDateTime::parse_from_str(ts_entry, "%Y-%m-%d %H:%M:%S")
+                                {
+                                    if let chrono::LocalResult::Single(local_dt) =
+                                        Local.from_local_datetime(&parsed)
                                     {
-                                        if let chrono::LocalResult::Single(local_dt) =
-                                            Local.from_local_datetime(&parsed)
-                                        {
-                                            to_update_timestamp = Some((job.id, local_dt));
-                                        }
+                                        // defer update
+                                        to_update_timestamp = Some((job.id, local_dt));
                                     }
                                 }
-                            });
+                            }
+
                             // ---- Company / Role / Location ----
                             ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
                             ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
@@ -274,7 +299,7 @@ impl eframe::App for JobApp {
 
                 // update the edit buffer so it shows canonical formatting
                 if let Some(ts_text) = self.edit_timestamps.get_mut(&id) {
-                    *ts_text = new_ts.format("%Y-%m-%d").to_string();
+                    *ts_text = new_ts.format("%Y-%m-%d %H:%M:%S").to_string();
                 }
             }
             if let Some(index) = to_remove {
