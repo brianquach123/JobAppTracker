@@ -1,10 +1,10 @@
-use chrono::{Duration, NaiveDate};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use chrono::{Local, NaiveDateTime, TimeZone};
 use eframe::egui::Color32;
 use eframe::egui::{self, TextEdit};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
-use jobtracker_core::{JobStatus, JobStore};
+use jobtracker_core::{Job, JobStatus, JobStore};
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
@@ -20,6 +20,8 @@ fn main() -> eframe::Result<()> {
     let _ = job_app.store.list_jobs().unwrap();
 
     // Tinkering with new stacked graphing logic
+    // TODO this needs to be the set of Jobs for each day
+    // ex) 9/9/25 = [Job1, Job2,...] all jobs whose timestamp fall in this day
     job_app.data = vec![
         vec![30.0, 45.0, 25.0, 60.0],
         vec![20.0, 35.0, 40.0, 30.0],
@@ -160,88 +162,77 @@ impl eframe::App for JobApp {
             // ----------------------------
             // Weekly bar chart (last 7 days)
             // ----------------------------
-            ui.label("# of Applications:");
-
-            Plot::new("stacked_bars")
-                .legend(Legend::default())
-                .view_aspect(2.0)
-                .include_x(0.0)
-                .include_x(self.group_names.len() as f64)
-                .include_y(0.0)
-                .include_y(150.0)
-                .show_grid(true)
-                .height(200.0)
-                .show(ui, |plot_ui| {
-                    // Create stacked bars for each group
-                    for (group_idx, _group_name) in self.group_names.iter().enumerate() {
-                        let mut cumulative_height = 0.0;
-
-                        for (category_idx, category_data) in self.data.iter().enumerate() {
-                            let value = category_data[group_idx];
-
-                            let bar = Bar::new(group_idx as f64 + 0.5, cumulative_height + value)
-                                .base_offset(cumulative_height)
-                                .name(&self.category_names[category_idx])
-                                .width(0.6);
-
-                            plot_ui.bar_chart(
-                                BarChart::new(vec![bar]).name(&self.group_names[group_idx]),
-                            );
-
-                            cumulative_height += value;
-                        }
-                    }
-
-                    // Add x-axis labels
-                    for (i, name) in self.group_names.iter().enumerate() {
-                        plot_ui.text(
-                            egui_plot::Text::new(PlotPoint::new(i as f64 + 0.5, -10.0), name)
-                                .color(egui::Color32::GRAY)
-                                .anchor(egui::Align2::CENTER_TOP),
-                        );
-                    }
-                });
-
-            /*
-            let today = Local::now().date_naive();
-            let last_7_days: Vec<NaiveDate> = (0..7)
+            let today = Utc::now();
+            let last_7_days: Vec<DateTime<Utc>> = (0..7)
                 .rev() // oldest day first
                 .map(|i| today - Duration::days(i))
                 .collect();
 
-            // Count jobs per day
-            let mut counts: HashMap<NaiveDate, usize> = HashMap::new();
+            // Group jobs by date (YYYY-MM-DD)
+            let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> = HashMap::new();
             for job in &self.store.jobs {
-                let job_date = job.timestamp.with_timezone(&Local).date_naive();
-                if last_7_days.contains(&job_date) {
-                    *counts.entry(job_date).or_default() += 1;
+                let job_date = job.timestamp.date_naive();
+
+                // Check if this job is within the last 7 days
+                let is_within_last_7_days = last_7_days.iter().any(|&ts| {
+                    let ts_date = ts.date_naive();
+                    job_date == ts_date // Exact date match for last 7 days
+                });
+
+                if is_within_last_7_days {
+                    date_to_jobs.entry(job_date).or_default().push(job.clone());
                 }
             }
 
-            // Prepare values for plotting
-            let values: Vec<(f64, f64)> = last_7_days
-                .iter()
-                .enumerate()
-                .map(|(i, date)| (i as f64, *counts.get(date).unwrap_or(&0) as f64))
-                .collect();
+            // Sort dates to ensure proper ordering on x-axis
+            let mut sorted_dates: Vec<NaiveDate> = date_to_jobs.keys().cloned().collect();
+            sorted_dates.sort();
 
-            let bars: Vec<Bar> = values
-                .iter()
-                .map(|&(x, y)| Bar::new(x, y).fill(Color32::from_rgb(100, 150, 250)))
-                .collect();
+            ui.label("# of Applications (Last 7 Days):");
+            Plot::new("applications_chart")
+                .legend(Legend::default())
+                .view_aspect(2.0)
+                .include_x(-0.5)
+                .include_x(sorted_dates.len() as f64 - 0.5)
+                .include_y(0.0)
+                .show_grid(true)
+                .height(250.0)
+                .show(ui, |plot_ui| {
+                    for (date_idx, date) in sorted_dates.iter().enumerate() {
+                        if let Some(jobs) = date_to_jobs.get(date) {
+                            let x_position = date_idx as f64;
 
-            let chart = BarChart::new(bars).width(0.6);
+                            // Create a bar for this date with height = number of jobs
+                            let bar = Bar::new(x_position, jobs.len() as f64)
+                                .width(0.8)
+                                .fill(Color32::from_rgb(65, 105, 225)) // Royal blue
+                                .name(date.format("%Y-%m-%d").to_string());
 
-            Plot::new("weekly_jobs").height(150.0).show(ui, |plot_ui| {
-                plot_ui.bar_chart(chart);
+                            plot_ui.bar_chart(BarChart::new(vec![bar]));
 
-                // Optional: add x-axis labels (MM-DD)
-                for (i, date) in last_7_days.iter().enumerate() {
-                    let label = date.format("%m-%d").to_string();
-                    plot_ui.text(Text::new(PlotPoint::new(i as f64, -0.5), label));
-                }
-            });
-            */
+                            // Add date label below the bar
+                            plot_ui.text(
+                                Text::new(
+                                    PlotPoint::new(x_position, -1.0),
+                                    date.format("%m/%d").to_string(),
+                                )
+                                .color(Color32::GRAY)
+                                .anchor(egui::Align2::CENTER_TOP),
+                            );
+                        }
+                    }
+
+                    // Add y-axis labels for count
+                    if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
+                        for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
+                            plot_ui.text(
+                                Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
+                                    .color(Color32::GRAY)
+                                    .anchor(egui::Align2::RIGHT_CENTER),
+                            );
+                        }
+                    }
+                });
             ui.separator();
 
             // ----------------------------
