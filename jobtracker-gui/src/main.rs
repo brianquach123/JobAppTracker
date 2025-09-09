@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use chrono::{Local, NaiveDateTime, TimeZone};
-use eframe::egui::Color32;
+use eframe::egui::{Color32, Stroke};
 use eframe::egui::{self, TextEdit};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
@@ -163,10 +163,8 @@ impl eframe::App for JobApp {
             // Weekly bar chart (last 7 days)
             // ----------------------------
             let today = Utc::now();
-            let last_7_days: Vec<DateTime<Utc>> = (0..10)
-                .rev() // oldest day first
-                .map(|i| today - Duration::days(i))
-                .collect();
+            let last_7_days: Vec<DateTime<Utc>> =
+                (0..10).rev().map(|i| today - Duration::days(i)).collect();
 
             // Group jobs by date (YYYY-MM-DD)
             let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> = HashMap::new();
@@ -188,10 +186,10 @@ impl eframe::App for JobApp {
             let mut sorted_dates: Vec<NaiveDate> = date_to_jobs.keys().cloned().collect();
             sorted_dates.sort();
 
-            ui.label("# of Applications (Last 7 Days):");
+            ui.label("# of Applications:");
             Plot::new("applications_chart")
                 .legend(Legend::default())
-                .view_aspect(2.0)
+                .view_aspect(4.0)
                 .include_x(-0.5)
                 .include_x(sorted_dates.len() as f64 - 0.5)
                 .include_y(0.0)
@@ -204,11 +202,15 @@ impl eframe::App for JobApp {
 
                             // Create a bar for this date with height = number of jobs
                             for (k, j) in jobs.iter().enumerate() {
-                                let bar = Bar::new(x_position, 1 as f64)
+                                let bar = Bar::new(x_position, 1_f64)
                                     .width(0.8)
                                     .base_offset(k as f64) // offset to stack values
                                     .fill(j.get_status_color_mapping())
-                                    .name(date.format("%Y-%m-%d").to_string());
+                                    .stroke(Stroke{
+                                        width: 0.3,
+                                        color: Color32::from_rgb(0, 0, 0),
+                                    })
+                                    .name(format!("{}\n{}", j.company, j.role));
                                 plot_ui.bar_chart(BarChart::new(vec![bar]));
                             }
 
