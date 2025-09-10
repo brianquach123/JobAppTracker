@@ -234,6 +234,11 @@ impl eframe::App for JobApp {
                                 } else {
                                     Stroke::new(0.3, Color32::BLACK) // normal border
                                 };
+
+                                if self.search_text.is_empty() {
+                                    self.selected_company = None;
+                                }
+
                                 let bar = Bar::new(x_position, 1_f64)
                                     .width(0.8)
                                     .base_offset(k as f64) // offset to stack values
