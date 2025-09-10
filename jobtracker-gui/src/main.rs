@@ -1,5 +1,6 @@
-use chrono::{Local, NaiveDateTime, TimeZone};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use chrono::{NaiveDate, Utc};
+use chrono_tz::America::New_York;
 use eframe::egui::{self, TextEdit};
 use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
@@ -16,7 +17,10 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    let mut job_app = JobApp::default();
+    let mut job_app = JobApp {
+        last_refresh: Utc::now(),
+        ..Default::default()
+    };
     let _ = job_app.store.list_jobs().unwrap();
 
     eframe::run_native(
@@ -34,6 +38,7 @@ struct JobApp {
     new_role_location: String,
     search_text: String,
     edit_timestamps: std::collections::HashMap<u32, String>,
+    last_refresh: DateTime<Utc>,
 }
 
 impl eframe::App for JobApp {
@@ -53,7 +58,15 @@ impl eframe::App for JobApp {
                 // Refresh button
                 if ui.add(egui::Button::new("Refresh")).clicked() {
                     let _ = self.store.list_jobs();
+                    self.last_refresh = Utc::now();
                 }
+                ui.label(format!(
+                    "Last Refresh: {}",
+                    self.last_refresh
+                        .with_timezone(&New_York)
+                        .format("%Y-%m-%d %H:%M:%S")
+                        .to_string()
+                ));
             });
 
             ui.separator();
