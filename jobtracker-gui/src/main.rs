@@ -1,5 +1,5 @@
-use chrono::{Duration, NaiveDate, Utc};
 use chrono::{Local, NaiveDateTime, TimeZone};
+use chrono::{NaiveDate, Utc};
 use eframe::egui::{self, TextEdit};
 use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
@@ -45,7 +45,10 @@ impl eframe::App for JobApp {
             ui.horizontal(|ui| {
                 // Search box
                 ui.label("Search:");
-                ui.add(TextEdit::singleline(&mut self.search_text));
+                ui.add(
+                    TextEdit::singleline(&mut self.search_text)
+                        .desired_width(ui.available_width() * 0.3),
+                );
 
                 // Refresh button
                 if ui.add(egui::Button::new("Refresh")).clicked() {
@@ -59,20 +62,23 @@ impl eframe::App for JobApp {
             // Add new job form
             // ----------------------------
             ui.horizontal(|ui| {
-                let text_width = 150.0; // pick a consistent width
+                let field_width = ui.available_width() / 4.0;
 
                 ui.label("Company:");
                 ui.add_sized(
-                    [text_width, 20.0],
+                    [field_width, 20.0],
                     TextEdit::singleline(&mut self.new_company),
                 );
 
                 ui.label("Role:");
-                ui.add_sized([text_width, 20.0], TextEdit::singleline(&mut self.new_role));
+                ui.add_sized(
+                    [field_width, 20.0],
+                    TextEdit::singleline(&mut self.new_role),
+                );
 
                 ui.label("Location:");
                 ui.add_sized(
-                    [text_width, 20.0],
+                    [field_width, 20.0],
                     TextEdit::singleline(&mut self.new_role_location),
                 );
 
@@ -107,13 +113,18 @@ impl eframe::App for JobApp {
                 .filter(|job| job.status == JobStatus::Rejected)
                 .count();
 
-            let in_progress_jobs = self
+            let applied_jobs = self
                 .store
                 .jobs
                 .iter()
-                .filter(|job| {
-                    job.status == JobStatus::Applied || job.status == JobStatus::Interview
-                })
+                .filter(|job| job.status == JobStatus::Applied)
+                .count();
+
+            let interview_jobs = self
+                .store
+                .jobs
+                .iter()
+                .filter(|job| job.status == JobStatus::Interview)
                 .count();
 
             let job_offers = self
@@ -126,11 +137,23 @@ impl eframe::App for JobApp {
             ui.horizontal(|ui| {
                 ui.label(format!("Total Applications: {}", total_jobs));
                 ui.add_space(20.0);
-                ui.label(format!("In progress: {}", in_progress_jobs));
+                ui.label(format!("Applied: {}", applied_jobs));
                 ui.add_space(20.0);
                 ui.label(format!("Rejected: {}", rejected_jobs));
                 ui.add_space(20.0);
+                ui.label(format!("Interview: {}", interview_jobs));
+                ui.add_space(20.0);
                 ui.label(format!("Offers: {}", job_offers));
+                ui.add_space(20.0);
+                ui.label(format!(
+                    "Rejection Rate: {:.2}%",
+                    (rejected_jobs as f32 / total_jobs as f32) * 100.0
+                ));
+                ui.add_space(20.0);
+                ui.label(format!(
+                    "Interview Yield Rate: {:.2}%",
+                    (interview_jobs as f32 / total_jobs as f32) * 100.0
+                ));
             });
 
             ui.separator();
@@ -139,17 +162,31 @@ impl eframe::App for JobApp {
             // Weekly bar chart (last 7 days)
             // ----------------------------
             let today = Utc::now();
+            // Find earliest application date (fallback: today if no jobs yet)
+            let earliest_date = self
+                .store
+                .jobs
+                .iter()
+                .map(|job| job.timestamp.date_naive())
+                .min()
+                .unwrap_or_else(|| today.date_naive());
 
-            // Collect the last 7 days as NaiveDates
-            let last_7_days: Vec<NaiveDate> = (0..7)
-                .map(|i| (today - Duration::days(i)).date_naive())
-                .collect();
+            // Collect every day from earliest_date..=today
+            let all_dates: Vec<NaiveDate> = {
+                let mut dates = Vec::new();
+                let mut d = earliest_date;
+                while d <= today.date_naive() {
+                    dates.push(d);
+                    d = d.succ_opt().unwrap(); // go to next day safely
+                }
+                dates
+            };
 
-            // Initialize the map with empty vectors for each date
+            // Initialize the map with empty vectors
             let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> =
-                last_7_days.iter().map(|&d| (d, Vec::new())).collect();
+                all_dates.iter().map(|&d| (d, Vec::new())).collect();
 
-            // Insert jobs into their respective day (if they match one of the last 7)
+            // Assign jobs to their dates
             for job in &self.store.jobs {
                 let job_date = job.timestamp.date_naive();
                 if date_to_jobs.contains_key(&job_date) {
@@ -157,14 +194,14 @@ impl eframe::App for JobApp {
                 }
             }
 
-            // Sort dates to ensure proper ordering on x-axis
+            // Sorted list of dates for x-axis
             let mut sorted_dates: Vec<NaiveDate> = date_to_jobs.keys().cloned().collect();
             sorted_dates.sort();
 
             ui.label("# of Applications:");
             Plot::new("applications_chart")
                 .legend(Legend::default())
-                .view_aspect(4.0)
+                .view_aspect(3.5)
                 .include_x(-0.5)
                 .include_x(sorted_dates.len() as f64 - 0.5)
                 .include_y(0.0)
@@ -232,7 +269,6 @@ impl eframe::App for JobApp {
             // ----------------------------
             // Bar Chart Legend
             // ----------------------------
-            ui.label("Legend:");
             ui.horizontal(|ui| {
                 // Color indicator
                 ui.painter().rect_filled(
