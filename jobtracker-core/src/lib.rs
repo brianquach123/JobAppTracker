@@ -10,6 +10,10 @@ use std::io::Read;
 use strum_macros::EnumIter;
 
 const FILE: &str = "jobtrack.json";
+const NAVY_BLUE: Color32 = Color32::from_rgb(65, 105, 225);
+const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
+const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
+const RED: Color32 = Color32::from_rgb(255, 0, 0);
 
 #[derive(EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum JobStatus {
@@ -62,10 +66,10 @@ impl Job {
 
     pub fn get_status_color_mapping(&self) -> Color32 {
         match self.status {
-            JobStatus::Applied => Color32::from_rgb(65, 105, 225),
-            JobStatus::Interview => Color32::from_rgb(0, 255, 255),
-            JobStatus::Offer => Color32::from_rgb(0, 255, 0),
-            JobStatus::Rejected => Color32::from_rgb(255, 0, 0),
+            JobStatus::Applied => NAVY_BLUE,
+            JobStatus::Interview => CYAN,
+            JobStatus::Offer => GREEN,
+            JobStatus::Rejected => RED,
         }
     }
 }

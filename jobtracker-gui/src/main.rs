@@ -65,7 +65,6 @@ impl eframe::App for JobApp {
                     self.last_refresh
                         .with_timezone(&New_York)
                         .format("%Y-%m-%d %H:%M:%S")
-                        .to_string()
                 ));
             });
 
