@@ -39,6 +39,7 @@ struct JobApp {
     search_text: String,
     edit_timestamps: std::collections::HashMap<u32, String>,
     last_refresh: DateTime<Utc>,
+    selected_company: Option<String>,
 }
 
 impl eframe::App for JobApp {
@@ -226,14 +227,18 @@ impl eframe::App for JobApp {
 
                             // Create a bar for this date with height = number of jobs
                             for (k, j) in jobs.iter().enumerate() {
+                                let is_selected =
+                                    self.selected_company.as_ref() == Some(&j.company);
+                                let stroke = if is_selected {
+                                    Stroke::new(3.0, Color32::GOLD) // thicker border
+                                } else {
+                                    Stroke::new(0.3, Color32::BLACK) // normal border
+                                };
                                 let bar = Bar::new(x_position, 1_f64)
                                     .width(0.8)
                                     .base_offset(k as f64) // offset to stack values
                                     .fill(j.get_status_color_mapping())
-                                    .stroke(Stroke {
-                                        width: 0.3,
-                                        color: Color32::from_rgb(0, 0, 0),
-                                    })
+                                    .stroke(stroke)
                                     .name(format!("{}\n{}", j.company, j.role));
                                 plot_ui.bar_chart(BarChart::new(vec![bar]));
                             }
@@ -261,6 +266,7 @@ impl eframe::App for JobApp {
                                     if let Some(job) = jobs.get(stack_idx) {
                                         // Update search text to clicked company
                                         self.search_text = job.company.clone();
+                                        self.selected_company = Some(job.company.clone());
                                     }
                                 }
                             }
