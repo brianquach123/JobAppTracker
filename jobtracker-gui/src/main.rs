@@ -201,6 +201,23 @@ impl eframe::App for JobApp {
                         }
                     }
 
+                    // Selectable chart entries that'll dynamically search for the app clicked
+                    if plot_ui.response().clicked() {
+                        if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
+                            let x_idx = pointer_pos.x.round() as usize;
+                            if let Some(date) = sorted_dates.get(x_idx) {
+                                if let Some(jobs) = date_to_jobs.get(date) {
+                                    // Find the "stack level" based on y coordinate
+                                    let stack_idx = pointer_pos.y.floor() as usize;
+                                    if let Some(job) = jobs.get(stack_idx) {
+                                        // Update search text to clicked company
+                                        self.search_text = job.company.clone();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Add y-axis labels for count
                     if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
                         for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
