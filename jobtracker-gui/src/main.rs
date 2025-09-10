@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use chrono::{Local, NaiveDateTime, TimeZone};
 use eframe::egui::{self, TextEdit};
 use eframe::egui::{Color32, Stroke};
@@ -139,22 +139,21 @@ impl eframe::App for JobApp {
             // Weekly bar chart (last 7 days)
             // ----------------------------
             let today = Utc::now();
-            let last_7_days: Vec<DateTime<Utc>> =
-                (0..10).rev().map(|i| today - Duration::days(i)).collect();
 
-            // Group jobs by date (YYYY-MM-DD)
-            let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> = HashMap::new();
+            // Collect the last 7 days as NaiveDates
+            let last_7_days: Vec<NaiveDate> = (0..7)
+                .map(|i| (today - Duration::days(i)).date_naive())
+                .collect();
+
+            // Initialize the map with empty vectors for each date
+            let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> =
+                last_7_days.iter().map(|&d| (d, Vec::new())).collect();
+
+            // Insert jobs into their respective day (if they match one of the last 7)
             for job in &self.store.jobs {
                 let job_date = job.timestamp.date_naive();
-
-                // Check if this job is within the last 7 days
-                let is_within_last_7_days = last_7_days.iter().any(|&ts| {
-                    let ts_date = ts.date_naive();
-                    job_date == ts_date // Exact date match for last 7 days
-                });
-
-                if is_within_last_7_days {
-                    date_to_jobs.entry(job_date).or_default().push(job.clone());
+                if date_to_jobs.contains_key(&job_date) {
+                    date_to_jobs.get_mut(&job_date).unwrap().push(job.clone());
                 }
             }
 
