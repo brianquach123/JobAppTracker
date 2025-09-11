@@ -38,6 +38,7 @@ struct JobApp {
     new_role_location: String,
     search_text: String,
     edit_timestamps: std::collections::HashMap<u32, String>,
+    edit_companies: std::collections::HashMap<u32, String>,
     last_refresh: DateTime<Utc>,
     selected_company: Option<String>,
 }
@@ -337,6 +338,7 @@ impl eframe::App for JobApp {
             let mut to_remove: Option<usize> = None;
             let mut to_update_status: Option<(u32, JobStatus)> = None;
             let mut to_update_timestamp: Option<(u32, chrono::DateTime<chrono::Local>)> = None;
+            let mut to_update_company: Option<(u32, String)> = None;
 
             egui::ScrollArea::both()
                 .auto_shrink([false; 2])
@@ -405,7 +407,24 @@ impl eframe::App for JobApp {
                             }
 
                             // ---- Company / Role / Location ----
-                            ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
+                            let curr_company = self
+                                .edit_companies
+                                .entry(job.id)
+                                .or_insert_with(|| job.company.clone());
+
+                            let response = ui.add_sized(
+                                [col_widths[2], 20.0],
+                                TextEdit::singleline(curr_company),
+                            );
+                            let pressed_enter = response.has_focus()
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                            if response.lost_focus() || pressed_enter {
+                                // defer update
+                                to_update_company = Some((job.id, curr_company.to_string()));
+                            }
+
+                            //ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
+
                             ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
                             ui.add_sized(
                                 [col_widths[4], 20.0],
@@ -459,6 +478,14 @@ impl eframe::App for JobApp {
             }
             if let Some(index) = to_remove {
                 self.store.delete_job(index).unwrap();
+            }
+            if let Some((id, new_company)) = to_update_company {
+                self.store.update_company(id, new_company.clone()).unwrap();
+
+                // update the edit buffer so it shows canonical formatting
+                if let Some(company) = self.edit_companies.get_mut(&id) {
+                    *company = new_company;
+                }
             }
         });
     }
