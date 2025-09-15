@@ -30,16 +30,28 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+/// Representation of the application itself.
 #[derive(Default)]
 struct JobApp {
+    /// Internal datastore of all job applications so far.
     store: JobStore,
+    /// Input element in form.
     new_company: String,
+    /// Input element in form.
     new_role: String,
+    /// Input element in form.
     new_role_location: String,
+    /// Input element in form
     search_text: String,
-    edit_timestamps: std::collections::HashMap<u32, String>,
-    edit_companies: std::collections::HashMap<u32, String>,
+    /// The set of timestamps the user has edited in the form.
+    edit_timestamps: HashMap<u32, String>,
+    /// The set of company names the user has edited in the form.
+    edit_companies: HashMap<u32, String>,
+    /// Last time the data file (DB TODO) was successfully read and deserialized.
     last_refresh: DateTime<Utc>,
+    /// Tracks which chart entry the user's currently selected. This is used for
+    /// highlighting and filtering for a specific job application through the stacked
+    /// bar chart.
     selected_company: Option<String>,
 }
 

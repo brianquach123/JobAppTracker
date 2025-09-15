@@ -15,6 +15,9 @@ const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
 const RED: Color32 = Color32::from_rgb(255, 0, 0);
 
+/// The states a job application may be in.
+/// A job application will only be in one state
+/// at any moment.
 #[derive(EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum JobStatus {
     Applied,
@@ -42,13 +45,23 @@ impl fmt::Display for JobStatus {
     }
 }
 
+/// Representation of a job application entered by the user.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job {
+    /// Sequential ID number.
     pub id: u32,
+    /// Name of the place the user applied to.
     pub company: String,
+    /// Name of the position the user applied to.
     pub role: String,
+    /// Location of the position.
     pub role_location: Option<String>,
+    /// State of this job application.
     pub status: JobStatus,
+    /// When this application was entered into the tracker.
+    /// This is reported in UTC in the frontend. The exact
+    /// value of this is set when the user clicks the button
+    /// to add a new application to the tracker.
     pub timestamp: DateTime<Utc>,
 }
 
