@@ -165,7 +165,7 @@ impl eframe::App for JobApp {
                 ));
                 ui.add_space(20.0);
                 ui.label(format!(
-                    "Interview Yield Rate: {:.2}%",
+                    "Interview Rate: {:.2}%",
                     (interview_jobs as f32 / total_jobs as f32) * 100.0
                 ));
             });
