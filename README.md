@@ -1,0 +1,1 @@
+To run locally: `cargo run -p jobtracker-gui`
