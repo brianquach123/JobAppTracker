@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use chrono::{NaiveDate, Utc};
 use chrono_tz::America::New_York;
-use eframe::egui::{self, TextEdit};
+use eframe::egui::{self, TextEdit, Ui};
 use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
@@ -55,6 +55,276 @@ struct JobApp {
     selected_company: Option<String>,
 }
 
+impl JobApp {
+    fn add_search_box(&mut self, ui: &mut Ui) {
+        ui.label("Search:");
+        ui.add(
+            TextEdit::singleline(&mut self.search_text).desired_width(ui.available_width() * 0.3),
+        );
+    }
+
+    fn add_refresh_button(&mut self, ui: &mut Ui) {
+        if ui.add(egui::Button::new("Refresh")).clicked() {
+            let _ = self.store.list_jobs();
+            self.last_refresh = Utc::now();
+        }
+        ui.label(format!(
+            "Last Refresh: {}",
+            self.last_refresh
+                .with_timezone(&New_York)
+                .format("%Y-%m-%d %H:%M:%S")
+        ));
+    }
+
+    fn add_job_app_input_form(&mut self, ui: &mut Ui) {
+        let field_width = ui.available_width() / 4.0;
+
+        ui.label("Company:");
+        ui.add_sized(
+            [field_width, 20.0],
+            TextEdit::singleline(&mut self.new_company),
+        );
+
+        ui.label("Role:");
+        ui.add_sized(
+            [field_width, 20.0],
+            TextEdit::singleline(&mut self.new_role),
+        );
+
+        ui.label("Location:");
+        ui.add_sized(
+            [field_width, 20.0],
+            TextEdit::singleline(&mut self.new_role_location),
+        );
+
+        if ui.button("Add").clicked()
+            && !self.new_company.is_empty()
+            && !self.new_role.is_empty()
+            && !self.new_role_location.is_empty()
+        {
+            self.store
+                .add_job(
+                    self.new_company.clone(),
+                    self.new_role.clone(),
+                    self.new_role_location.clone(),
+                )
+                .unwrap();
+            self.new_company.clear();
+            self.new_role.clear();
+            self.new_role_location.clear();
+        }
+    }
+
+    fn add_summary_stats(&mut self, ui: &mut Ui) {
+        let total_jobs = self.store.jobs.len();
+        let rejected_jobs = self
+            .store
+            .jobs
+            .iter()
+            .filter(|job| job.status == JobStatus::Rejected)
+            .count();
+        let applied_jobs = self
+            .store
+            .jobs
+            .iter()
+            .filter(|job| job.status == JobStatus::Applied)
+            .count();
+        let interview_jobs = self
+            .store
+            .jobs
+            .iter()
+            .filter(|job| job.status == JobStatus::Interview)
+            .count();
+        let job_offers = self
+            .store
+            .jobs
+            .iter()
+            .filter(|job| job.status == JobStatus::Offer)
+            .count();
+        ui.horizontal(|ui| {
+            ui.label(format!("Total Applications: {}", total_jobs));
+            ui.add_space(20.0);
+            ui.label(format!("Applied: {}", applied_jobs));
+            ui.add_space(20.0);
+            ui.label(format!("Rejected: {}", rejected_jobs));
+            ui.add_space(20.0);
+            ui.label(format!("Interview: {}", interview_jobs));
+            ui.add_space(20.0);
+            ui.label(format!("Offers: {}", job_offers));
+            ui.add_space(20.0);
+            ui.label(format!(
+                "Rejection Rate: {:.2}%",
+                (rejected_jobs as f32 / total_jobs as f32) * 100.0
+            ));
+            ui.add_space(20.0);
+            ui.label(format!(
+                "Interview Rate: {:.2}%",
+                (interview_jobs as f32 / total_jobs as f32) * 100.0
+            ));
+        });
+    }
+
+    fn add_bar_chart_stats(&mut self, ui: &mut Ui) {
+        // ----------------------------
+        // Weekly bar chart (last 7 days)
+        // ----------------------------
+        let today = Utc::now();
+        // Find earliest application date (fallback: today if no jobs yet)
+        let earliest_date = self
+            .store
+            .jobs
+            .iter()
+            .map(|job| job.timestamp.date_naive())
+            .min()
+            .unwrap_or_else(|| today.date_naive());
+
+        // Collect every day from earliest_date..=today
+        let all_dates: Vec<NaiveDate> = {
+            let mut dates = Vec::new();
+            let mut d = earliest_date;
+            while d <= today.date_naive() {
+                dates.push(d);
+                d = d.succ_opt().unwrap(); // go to next day safely
+            }
+            dates
+        };
+
+        // Initialize the map with empty vectors
+        let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> =
+            all_dates.iter().map(|&d| (d, Vec::new())).collect();
+
+        // Assign jobs to their dates
+        for job in &self.store.jobs {
+            let job_date = job.timestamp.date_naive();
+            if date_to_jobs.contains_key(&job_date) {
+                date_to_jobs.get_mut(&job_date).unwrap().push(job.clone());
+            }
+        }
+
+        // Sorted list of dates for x-axis
+        let mut sorted_dates: Vec<NaiveDate> = date_to_jobs.keys().cloned().collect();
+        sorted_dates.sort();
+
+        ui.label("# of Applications:");
+        Plot::new("applications_chart")
+            .legend(Legend::default())
+            .view_aspect(3.5)
+            .include_x(-0.5)
+            .include_x(sorted_dates.len() as f64 - 0.5)
+            .include_y(0.0)
+            .show_grid(true)
+            .height(250.0)
+            .show(ui, |plot_ui| {
+                for (date_idx, date) in sorted_dates.iter().enumerate() {
+                    if let Some(jobs) = date_to_jobs.get(date) {
+                        let x_position = date_idx as f64;
+
+                        // Create a bar for this date with height = number of jobs
+                        for (k, j) in jobs.iter().enumerate() {
+                            let is_selected = self.selected_company.as_ref() == Some(&j.company);
+                            let stroke = if is_selected {
+                                Stroke::new(3.0, Color32::GOLD) // thicker border
+                            } else {
+                                Stroke::new(0.3, Color32::BLACK) // normal border
+                            };
+
+                            if self.search_text.is_empty() {
+                                self.selected_company = None;
+                            }
+
+                            let bar = Bar::new(x_position, 1_f64)
+                                .width(0.8)
+                                .base_offset(k as f64) // offset to stack values
+                                .fill(j.get_status_color_mapping())
+                                .stroke(stroke)
+                                .name(format!("{}\n{}", j.company, j.role));
+                            plot_ui.bar_chart(BarChart::new(vec![bar]));
+                        }
+
+                        // Add date label below the bar
+                        plot_ui.text(
+                            Text::new(
+                                PlotPoint::new(x_position, -1.0),
+                                date.format("%m/%d").to_string(),
+                            )
+                            .color(Color32::GRAY)
+                            .anchor(egui::Align2::CENTER_TOP),
+                        );
+                    }
+                }
+
+                // Selectable chart entries that'll dynamically search for the app clicked
+                if plot_ui.response().clicked() {
+                    if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
+                        let x_idx = pointer_pos.x.round() as usize;
+                        if let Some(date) = sorted_dates.get(x_idx) {
+                            if let Some(jobs) = date_to_jobs.get(date) {
+                                // Find the "stack level" based on y coordinate
+                                let stack_idx = pointer_pos.y.floor() as usize;
+                                if let Some(job) = jobs.get(stack_idx) {
+                                    // Update search text to clicked company
+                                    self.search_text = job.company.clone();
+                                    self.selected_company = Some(job.company.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add y-axis labels for count
+                if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
+                    for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
+                        plot_ui.text(
+                            Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
+                                .color(Color32::GRAY)
+                                .anchor(egui::Align2::RIGHT_CENTER),
+                        );
+                    }
+                }
+            });
+        // ----------------------------
+        // Bar Chart Legend
+        // ----------------------------
+        ui.horizontal(|ui| {
+            // Color indicator
+            ui.painter().rect_filled(
+                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                2.0,
+                Color32::from_rgb(65, 105, 225),
+            );
+            ui.add_space(20.0);
+            ui.label("Applied".to_string());
+            ui.add_space(10.0);
+
+            ui.painter().rect_filled(
+                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                2.0,
+                Color32::from_rgb(0, 255, 255),
+            );
+            ui.add_space(20.0);
+            ui.label("Interview".to_string());
+            ui.add_space(10.0);
+
+            ui.painter().rect_filled(
+                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                2.0,
+                Color32::from_rgb(0, 255, 0),
+            );
+            ui.add_space(20.0);
+            ui.label("Offer".to_string());
+
+            ui.painter().rect_filled(
+                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                2.0,
+                Color32::from_rgb(255, 0, 0),
+            );
+            ui.add_space(20.0);
+            ui.label("Rejected".to_string());
+            ui.add_space(10.0);
+        });
+    }
+}
+
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -62,286 +332,22 @@ impl eframe::App for JobApp {
             ui.separator();
 
             ui.horizontal(|ui| {
-                // Search box
-                ui.label("Search:");
-                ui.add(
-                    TextEdit::singleline(&mut self.search_text)
-                        .desired_width(ui.available_width() * 0.3),
-                );
-
-                // Refresh button
-                if ui.add(egui::Button::new("Refresh")).clicked() {
-                    let _ = self.store.list_jobs();
-                    self.last_refresh = Utc::now();
-                }
-                ui.label(format!(
-                    "Last Refresh: {}",
-                    self.last_refresh
-                        .with_timezone(&New_York)
-                        .format("%Y-%m-%d %H:%M:%S")
-                ));
+                self.add_search_box(ui);
+                self.add_refresh_button(ui);
             });
-
             ui.separator();
 
-            // ----------------------------
-            // Add new job form
-            // ----------------------------
             ui.horizontal(|ui| {
-                let field_width = ui.available_width() / 4.0;
-
-                ui.label("Company:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_company),
-                );
-
-                ui.label("Role:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_role),
-                );
-
-                ui.label("Location:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_role_location),
-                );
-
-                if ui.button("Add").clicked()
-                    && !self.new_company.is_empty()
-                    && !self.new_role.is_empty()
-                    && !self.new_role_location.is_empty()
-                {
-                    self.store
-                        .add_job(
-                            self.new_company.clone(),
-                            self.new_role.clone(),
-                            self.new_role_location.clone(),
-                        )
-                        .unwrap();
-                    self.new_company.clear();
-                    self.new_role.clear();
-                    self.new_role_location.clear();
-                }
+                self.add_job_app_input_form(ui);
             });
-
-            ui.separator();
-            // ----------------------------
-            // Summary stats
-            // ----------------------------
-            let total_jobs = self.store.jobs.len();
-
-            let rejected_jobs = self
-                .store
-                .jobs
-                .iter()
-                .filter(|job| job.status == JobStatus::Rejected)
-                .count();
-
-            let applied_jobs = self
-                .store
-                .jobs
-                .iter()
-                .filter(|job| job.status == JobStatus::Applied)
-                .count();
-
-            let interview_jobs = self
-                .store
-                .jobs
-                .iter()
-                .filter(|job| job.status == JobStatus::Interview)
-                .count();
-
-            let job_offers = self
-                .store
-                .jobs
-                .iter()
-                .filter(|job| job.status == JobStatus::Offer)
-                .count();
-
-            ui.horizontal(|ui| {
-                ui.label(format!("Total Applications: {}", total_jobs));
-                ui.add_space(20.0);
-                ui.label(format!("Applied: {}", applied_jobs));
-                ui.add_space(20.0);
-                ui.label(format!("Rejected: {}", rejected_jobs));
-                ui.add_space(20.0);
-                ui.label(format!("Interview: {}", interview_jobs));
-                ui.add_space(20.0);
-                ui.label(format!("Offers: {}", job_offers));
-                ui.add_space(20.0);
-                ui.label(format!(
-                    "Rejection Rate: {:.2}%",
-                    (rejected_jobs as f32 / total_jobs as f32) * 100.0
-                ));
-                ui.add_space(20.0);
-                ui.label(format!(
-                    "Interview Rate: {:.2}%",
-                    (interview_jobs as f32 / total_jobs as f32) * 100.0
-                ));
-            });
-
             ui.separator();
 
-            // ----------------------------
-            // Weekly bar chart (last 7 days)
-            // ----------------------------
-            let today = Utc::now();
-            // Find earliest application date (fallback: today if no jobs yet)
-            let earliest_date = self
-                .store
-                .jobs
-                .iter()
-                .map(|job| job.timestamp.date_naive())
-                .min()
-                .unwrap_or_else(|| today.date_naive());
-
-            // Collect every day from earliest_date..=today
-            let all_dates: Vec<NaiveDate> = {
-                let mut dates = Vec::new();
-                let mut d = earliest_date;
-                while d <= today.date_naive() {
-                    dates.push(d);
-                    d = d.succ_opt().unwrap(); // go to next day safely
-                }
-                dates
-            };
-
-            // Initialize the map with empty vectors
-            let mut date_to_jobs: HashMap<NaiveDate, Vec<Job>> =
-                all_dates.iter().map(|&d| (d, Vec::new())).collect();
-
-            // Assign jobs to their dates
-            for job in &self.store.jobs {
-                let job_date = job.timestamp.date_naive();
-                if date_to_jobs.contains_key(&job_date) {
-                    date_to_jobs.get_mut(&job_date).unwrap().push(job.clone());
-                }
-            }
-
-            // Sorted list of dates for x-axis
-            let mut sorted_dates: Vec<NaiveDate> = date_to_jobs.keys().cloned().collect();
-            sorted_dates.sort();
-
-            ui.label("# of Applications:");
-            Plot::new("applications_chart")
-                .legend(Legend::default())
-                .view_aspect(3.5)
-                .include_x(-0.5)
-                .include_x(sorted_dates.len() as f64 - 0.5)
-                .include_y(0.0)
-                .show_grid(true)
-                .height(250.0)
-                .show(ui, |plot_ui| {
-                    for (date_idx, date) in sorted_dates.iter().enumerate() {
-                        if let Some(jobs) = date_to_jobs.get(date) {
-                            let x_position = date_idx as f64;
-
-                            // Create a bar for this date with height = number of jobs
-                            for (k, j) in jobs.iter().enumerate() {
-                                let is_selected =
-                                    self.selected_company.as_ref() == Some(&j.company);
-                                let stroke = if is_selected {
-                                    Stroke::new(3.0, Color32::GOLD) // thicker border
-                                } else {
-                                    Stroke::new(0.3, Color32::BLACK) // normal border
-                                };
-
-                                if self.search_text.is_empty() {
-                                    self.selected_company = None;
-                                }
-
-                                let bar = Bar::new(x_position, 1_f64)
-                                    .width(0.8)
-                                    .base_offset(k as f64) // offset to stack values
-                                    .fill(j.get_status_color_mapping())
-                                    .stroke(stroke)
-                                    .name(format!("{}\n{}", j.company, j.role));
-                                plot_ui.bar_chart(BarChart::new(vec![bar]));
-                            }
-
-                            // Add date label below the bar
-                            plot_ui.text(
-                                Text::new(
-                                    PlotPoint::new(x_position, -1.0),
-                                    date.format("%m/%d").to_string(),
-                                )
-                                .color(Color32::GRAY)
-                                .anchor(egui::Align2::CENTER_TOP),
-                            );
-                        }
-                    }
-
-                    // Selectable chart entries that'll dynamically search for the app clicked
-                    if plot_ui.response().clicked() {
-                        if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
-                            let x_idx = pointer_pos.x.round() as usize;
-                            if let Some(date) = sorted_dates.get(x_idx) {
-                                if let Some(jobs) = date_to_jobs.get(date) {
-                                    // Find the "stack level" based on y coordinate
-                                    let stack_idx = pointer_pos.y.floor() as usize;
-                                    if let Some(job) = jobs.get(stack_idx) {
-                                        // Update search text to clicked company
-                                        self.search_text = job.company.clone();
-                                        self.selected_company = Some(job.company.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Add y-axis labels for count
-                    if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
-                        for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
-                            plot_ui.text(
-                                Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
-                                    .color(Color32::GRAY)
-                                    .anchor(egui::Align2::RIGHT_CENTER),
-                            );
-                        }
-                    }
-                });
-            // ----------------------------
-            // Bar Chart Legend
-            // ----------------------------
             ui.horizontal(|ui| {
-                // Color indicator
-                ui.painter().rect_filled(
-                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                    2.0,
-                    Color32::from_rgb(65, 105, 225),
-                );
-                ui.add_space(20.0);
-                ui.label("Applied".to_string());
-                ui.add_space(10.0);
-
-                ui.painter().rect_filled(
-                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                    2.0,
-                    Color32::from_rgb(0, 255, 255),
-                );
-                ui.add_space(20.0);
-                ui.label("Interview".to_string());
-                ui.add_space(10.0);
-
-                ui.painter().rect_filled(
-                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                    2.0,
-                    Color32::from_rgb(0, 255, 0),
-                );
-                ui.add_space(20.0);
-                ui.label("Offer".to_string());
-
-                ui.painter().rect_filled(
-                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                    2.0,
-                    Color32::from_rgb(255, 0, 0),
-                );
-                ui.add_space(20.0);
-                ui.label("Rejected".to_string());
-                ui.add_space(10.0);
+                self.add_summary_stats(ui);
             });
+            ui.separator();
+
+            self.add_bar_chart_stats(ui);
             ui.separator();
 
             // ----------------------------
@@ -431,11 +437,8 @@ impl eframe::App for JobApp {
                             let pressed_enter = response.has_focus()
                                 && ui.input(|i| i.key_pressed(egui::Key::Enter));
                             if response.lost_focus() || pressed_enter {
-                                // defer update
                                 to_update_company = Some((job.id, curr_company.to_string()));
                             }
-
-                            //ui.add_sized([col_widths[2], 20.0], egui::Label::new(&job.company));
 
                             ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
                             ui.add_sized(
