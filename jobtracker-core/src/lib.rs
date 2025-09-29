@@ -9,6 +9,21 @@ use std::fs::OpenOptions;
 use std::io::Read;
 use strum_macros::EnumIter;
 
+pub const APP_NAME: &str = "Job Application Tracker";
+pub const WINDOW_WIDTH: f32 = 1200.0;
+pub const WINDOW_HEIGHT: f32 = 800.0;
+pub const DEFAULT_FIELD_ELEMENT_HEIGHT: f32 = 20.0;
+pub const COLUMN_HEADER_AND_WIDTH_FIELDS: [(&str, f32); 8] = [
+    ("ID", 50.0),
+    ("Date Applied", 180.0),
+    ("Company", 120.0),
+    ("Role", 120.0),
+    ("Location", 100.0),
+    ("Status", 100.0),
+    ("Action", 60.0),
+    ("Source", 60.0),
+];
+
 const FILE: &str = "jobtrack.json";
 const NAVY_BLUE: Color32 = Color32::from_rgb(65, 105, 225);
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);

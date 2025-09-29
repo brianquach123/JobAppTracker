@@ -5,24 +5,12 @@ use eframe::egui::{self, TextEdit, Ui};
 use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
-use jobtracker_core::{Job, JobStatus, JobStore};
+use jobtracker_core::{
+    Job, JobStatus, JobStore, APP_NAME, COLUMN_HEADER_AND_WIDTH_FIELDS,
+    DEFAULT_FIELD_ELEMENT_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH,
+};
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
-
-const APP_NAME: &str = "Job Application Tracker";
-const WINDOW_WIDTH: f32 = 1200.0;
-const WINDOW_HEIGHT: f32 = 800.0;
-const DEFAULT_FIELD_ELEMENT_HEIGHT: f32 = 20.0;
-const COLUMN_HEADER_AND_WIDTH_FIELDS: [(&str, f32); 8] = [
-    ("ID", 50.0),
-    ("Date Applied", 180.0),
-    ("Company", 120.0),
-    ("Role", 120.0),
-    ("Location", 100.0),
-    ("Status", 100.0),
-    ("Action", 60.0),
-    ("Source", 60.0),
-];
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
