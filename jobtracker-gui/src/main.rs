@@ -9,10 +9,25 @@ use jobtracker_core::{Job, JobStatus, JobStore};
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
+const APP_NAME: &str = "Job Application Tracker";
+const WINDOW_WIDTH: f32 = 1200.0;
+const WINDOW_HEIGHT: f32 = 800.0;
+const DEFAULT_FIELD_ELEMENT_HEIGHT: f32 = 20.0;
+const COLUMN_HEADER_AND_WIDTH_FIELDS: [(&str, f32); 8] = [
+    ("ID", 50.0),
+    ("Date Applied", 180.0),
+    ("Company", 120.0),
+    ("Role", 120.0),
+    ("Location", 100.0),
+    ("Status", 100.0),
+    ("Action", 60.0),
+    ("Source", 60.0),
+];
+
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1000.0, 600.0])
+            .with_inner_size([WINDOW_WIDTH, WINDOW_HEIGHT])
             .with_resizable(true),
         ..Default::default()
     };
@@ -23,11 +38,7 @@ fn main() -> eframe::Result<()> {
     };
     let _ = job_app.store.list_jobs().unwrap();
 
-    eframe::run_native(
-        "Job Application Tracker",
-        options,
-        Box::new(|_cc| Ok(Box::new(job_app))),
-    )
+    eframe::run_native(APP_NAME, options, Box::new(|_cc| Ok(Box::new(job_app))))
 }
 
 /// Representation of the application itself.
@@ -328,7 +339,7 @@ impl JobApp {
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Job Application Tracker");
+            ui.heading(APP_NAME);
             ui.separator();
 
             ui.horizontal(|ui| {
@@ -362,16 +373,14 @@ impl eframe::App for JobApp {
                 .auto_shrink([false; 2])
                 .show(ui, |ui| {
                     egui::Grid::new("jobs_grid").striped(true).show(ui, |ui| {
-                        let col_widths = [50.0, 180.0, 120.0, 120.0, 100.0, 100.0, 60.0];
-
                         // Header row
-                        ui.add_sized([col_widths[0], 20.0], egui::Label::new("ID"));
-                        ui.add_sized([col_widths[1], 20.0], egui::Label::new("Date Applied"));
-                        ui.add_sized([col_widths[2], 20.0], egui::Label::new("Company"));
-                        ui.add_sized([col_widths[3], 20.0], egui::Label::new("Role"));
-                        ui.add_sized([col_widths[4], 20.0], egui::Label::new("Location"));
-                        ui.add_sized([col_widths[5], 20.0], egui::Label::new("Status"));
-                        ui.add_sized([col_widths[6], 20.0], egui::Label::new("Action"));
+                        for (idx, header_field) in COLUMN_HEADER_AND_WIDTH_FIELDS.iter().enumerate()
+                        {
+                            ui.add_sized(
+                                [header_field.1, DEFAULT_FIELD_ELEMENT_HEIGHT],
+                                egui::Label::new(COLUMN_HEADER_AND_WIDTH_FIELDS[idx].0),
+                            );
+                        }
                         ui.end_row();
 
                         // Rows
@@ -395,7 +404,7 @@ impl eframe::App for JobApp {
                             .enumerate()
                         {
                             ui.add_sized(
-                                [col_widths[0], 20.0],
+                                [50.0, DEFAULT_FIELD_ELEMENT_HEIGHT],
                                 egui::Label::new(job.id.to_string()),
                             );
 
@@ -405,8 +414,13 @@ impl eframe::App for JobApp {
                                     job.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()
                                 });
 
-                            let response =
-                                ui.add_sized([col_widths[1], 20.0], TextEdit::singleline(ts_entry));
+                            let response = ui.add_sized(
+                                [
+                                    COLUMN_HEADER_AND_WIDTH_FIELDS[1].1,
+                                    DEFAULT_FIELD_ELEMENT_HEIGHT,
+                                ],
+                                TextEdit::singleline(ts_entry),
+                            );
 
                             let pressed_enter = response.has_focus()
                                 && ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -431,7 +445,10 @@ impl eframe::App for JobApp {
                                 .or_insert_with(|| job.company.clone());
 
                             let response = ui.add_sized(
-                                [col_widths[2], 20.0],
+                                [
+                                    COLUMN_HEADER_AND_WIDTH_FIELDS[2].1,
+                                    DEFAULT_FIELD_ELEMENT_HEIGHT,
+                                ],
                                 TextEdit::singleline(curr_company),
                             );
                             let pressed_enter = response.has_focus()
@@ -440,9 +457,18 @@ impl eframe::App for JobApp {
                                 to_update_company = Some((job.id, curr_company.to_string()));
                             }
 
-                            ui.add_sized([col_widths[3], 20.0], egui::Label::new(&job.role));
                             ui.add_sized(
-                                [col_widths[4], 20.0],
+                                [
+                                    COLUMN_HEADER_AND_WIDTH_FIELDS[3].1,
+                                    DEFAULT_FIELD_ELEMENT_HEIGHT,
+                                ],
+                                egui::Label::new(&job.role),
+                            );
+                            ui.add_sized(
+                                [
+                                    COLUMN_HEADER_AND_WIDTH_FIELDS[4].1,
+                                    DEFAULT_FIELD_ELEMENT_HEIGHT,
+                                ],
                                 egui::Label::new(
                                     job.role_location.clone().unwrap_or("N/A".to_string()),
                                 ),
