@@ -14,6 +14,7 @@ const NAVY_BLUE: Color32 = Color32::from_rgb(65, 105, 225);
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
 const RED: Color32 = Color32::from_rgb(255, 0, 0);
+const GRAY: Color32 = Color32::from_rgb(128, 128, 128);
 
 /// The states a job application may be in.
 /// A job application will only be in one state
@@ -24,6 +25,7 @@ pub enum JobStatus {
     Interview,
     Offer,
     Rejected,
+    Ghosted,
 }
 
 impl fmt::Display for JobStatus {
@@ -40,6 +42,9 @@ impl fmt::Display for JobStatus {
             }
             JobStatus::Rejected => {
                 write!(f, "Rejected")
+            }
+            JobStatus::Ghosted => {
+                write!(f, "Ghosted")
             }
         }
     }
@@ -83,6 +88,7 @@ impl Job {
             JobStatus::Interview => CYAN,
             JobStatus::Offer => GREEN,
             JobStatus::Rejected => RED,
+            JobStatus::Ghosted => GRAY,
         }
     }
 }
@@ -110,12 +116,38 @@ pub fn load() -> Result<Vec<Job>> {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
+pub struct SummaryCounts {
+    pub rejected: usize,
+    pub ghosted: usize,
+    pub applied: usize,
+    pub interviews: usize,
+    pub offers: usize,
+}
+
+#[derive(Default, Debug)]
 pub struct JobStore {
     pub jobs: Vec<Job>,
+    pub summary_stats: SummaryCounts,
 }
 
 impl JobStore {
+    pub fn calculate_summary_stats(&mut self) -> Result<usize, Error> {
+        // TODO: Add a periodic check for this? dont need to iterate every frame.
+        // Reset counts to account for the egui update() tick
+        self.summary_stats = SummaryCounts::default();
+        for job in &self.jobs {
+            match job.status {
+                JobStatus::Rejected => self.summary_stats.rejected += 1,
+                JobStatus::Ghosted => self.summary_stats.ghosted += 1,
+                JobStatus::Applied => self.summary_stats.applied += 1,
+                JobStatus::Interview => self.summary_stats.interviews += 1,
+                JobStatus::Offer => self.summary_stats.offers += 1,
+            }
+        }
+        Ok(self.jobs.len())
+    }
+
     pub fn add_job(
         &mut self,
         company: String,

@@ -127,50 +127,32 @@ impl JobApp {
     }
 
     fn add_summary_stats(&mut self, ui: &mut Ui) {
-        let total_jobs = self.store.jobs.len();
-        let rejected_jobs = self
-            .store
-            .jobs
-            .iter()
-            .filter(|job| job.status == JobStatus::Rejected)
-            .count();
-        let applied_jobs = self
-            .store
-            .jobs
-            .iter()
-            .filter(|job| job.status == JobStatus::Applied)
-            .count();
-        let interview_jobs = self
-            .store
-            .jobs
-            .iter()
-            .filter(|job| job.status == JobStatus::Interview)
-            .count();
-        let job_offers = self
-            .store
-            .jobs
-            .iter()
-            .filter(|job| job.status == JobStatus::Offer)
-            .count();
+        let total_apps = self.store.calculate_summary_stats().unwrap();
+
         ui.horizontal(|ui| {
-            ui.label(format!("Total Applications: {}", total_jobs));
+            ui.label(format!("Total Applications: {}", total_apps));
             ui.add_space(20.0);
-            ui.label(format!("Applied: {}", applied_jobs));
+            ui.label(format!("Applied: {}", self.store.summary_stats.applied));
             ui.add_space(20.0);
-            ui.label(format!("Rejected: {}", rejected_jobs));
+            ui.label(format!("Rejected: {}", self.store.summary_stats.rejected));
             ui.add_space(20.0);
-            ui.label(format!("Interview: {}", interview_jobs));
+            ui.label(format!("Ghosted: {}", self.store.summary_stats.ghosted));
             ui.add_space(20.0);
-            ui.label(format!("Offers: {}", job_offers));
+            ui.label(format!(
+                "Interview: {}",
+                self.store.summary_stats.interviews
+            ));
+            ui.add_space(20.0);
+            ui.label(format!("Offers: {}", self.store.summary_stats.offers));
             ui.add_space(20.0);
             ui.label(format!(
                 "Rejection Rate: {:.2}%",
-                (rejected_jobs as f32 / total_jobs as f32) * 100.0
+                (self.store.summary_stats.rejected as f32 / total_apps as f32) * 100.0
             ));
             ui.add_space(20.0);
             ui.label(format!(
                 "Interview Rate: {:.2}%",
-                (interview_jobs as f32 / total_jobs as f32) * 100.0
+                (self.store.summary_stats.interviews as f32 / total_apps as f32) * 100.0
             ));
         });
     }
