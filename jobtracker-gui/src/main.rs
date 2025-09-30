@@ -6,7 +6,7 @@ use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
 use jobtracker_core::{
-    Job, JobStatus, JobStore, APP_NAME, COLUMN_HEADER_AND_WIDTH_FIELDS,
+    Job, JobSource, JobStatus, JobStore, APP_NAME, COLUMN_HEADER_AND_WIDTH_FIELDS,
     DEFAULT_FIELD_ELEMENT_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use std::collections::HashMap;
@@ -40,6 +40,8 @@ struct JobApp {
     new_role: String,
     /// Input element in form.
     new_role_location: String,
+    /// Input element in form
+    new_source: String,
     /// Input element in form
     search_text: String,
     /// The set of timestamps the user has edited in the form.
@@ -76,42 +78,58 @@ impl JobApp {
     }
 
     fn add_job_app_input_form(&mut self, ui: &mut Ui) {
-        let field_width = ui.available_width() / 4.0;
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                let field_width = ui.available_width() / 4.0;
+                ui.horizontal(|ui| {
+                    ui.label("Company:");
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_company),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Role:");
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_role),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Location:");
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_role_location),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Source:");
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_source),
+                    );
+                });
 
-        ui.label("Company:");
-        ui.add_sized(
-            [field_width, 20.0],
-            TextEdit::singleline(&mut self.new_company),
-        );
-
-        ui.label("Role:");
-        ui.add_sized(
-            [field_width, 20.0],
-            TextEdit::singleline(&mut self.new_role),
-        );
-
-        ui.label("Location:");
-        ui.add_sized(
-            [field_width, 20.0],
-            TextEdit::singleline(&mut self.new_role_location),
-        );
-
-        if ui.button("Add").clicked()
-            && !self.new_company.is_empty()
-            && !self.new_role.is_empty()
-            && !self.new_role_location.is_empty()
-        {
-            self.store
-                .add_job(
-                    self.new_company.clone(),
-                    self.new_role.clone(),
-                    self.new_role_location.clone(),
-                )
-                .unwrap();
-            self.new_company.clear();
-            self.new_role.clear();
-            self.new_role_location.clear();
-        }
+                if ui.button("Add").clicked()
+                    && !self.new_company.is_empty()
+                    && !self.new_role.is_empty()
+                    && !self.new_role_location.is_empty()
+                    && !self.new_source.is_empty()
+                {
+                    self.store
+                        .add_job(
+                            self.new_company.clone(),
+                            self.new_role.clone(),
+                            self.new_role_location.clone(),
+                            self.new_source.clone(),
+                        )
+                        .unwrap();
+                    self.new_company.clear();
+                    self.new_role.clear();
+                    self.new_role_location.clear();
+                }
+            });
+        });
     }
 
     fn add_summary_stats(&mut self, ui: &mut Ui) {
@@ -160,7 +178,7 @@ impl JobApp {
         sorted_dates.sort();
 
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            ui.label("Job Application Timeline:");
+            ui.label("Application Timeline");
             Plot::new("applications_chart")
                 .legend(Legend::default())
                 .include_y(0.0)
@@ -240,41 +258,55 @@ impl JobApp {
         // Bar Chart Legend
         // ----------------------------
         ui.horizontal(|ui| {
-            // Color indicator
-            ui.painter().rect_filled(
-                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                2.0,
-                Color32::from_rgb(65, 105, 225),
-            );
-            ui.add_space(20.0);
-            ui.label("Applied".to_string());
-            ui.add_space(10.0);
-
-            ui.painter().rect_filled(
-                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                2.0,
-                Color32::from_rgb(0, 255, 255),
-            );
-            ui.add_space(20.0);
-            ui.label("Interview".to_string());
-            ui.add_space(10.0);
-
-            ui.painter().rect_filled(
-                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                2.0,
-                Color32::from_rgb(0, 255, 0),
-            );
-            ui.add_space(20.0);
-            ui.label("Offer".to_string());
-
-            ui.painter().rect_filled(
-                egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                2.0,
-                Color32::from_rgb(255, 0, 0),
-            );
-            ui.add_space(20.0);
-            ui.label("Rejected".to_string());
-            ui.add_space(10.0);
+            ui.columns(4, |columns| {
+                columns[0].vertical_centered(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                            2.0,
+                            Color32::from_rgb(65, 105, 225),
+                        );
+                        ui.add_space(20.0);
+                        ui.label("Applied".to_string());
+                        ui.add_space(10.0);
+                    });
+                });
+                columns[1].vertical_centered(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                            2.0,
+                            Color32::from_rgb(0, 255, 255),
+                        );
+                        ui.add_space(20.0);
+                        ui.label("Interview".to_string());
+                        ui.add_space(10.0);
+                    });
+                });
+                columns[2].vertical_centered(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                            2.0,
+                            Color32::from_rgb(0, 255, 0),
+                        );
+                        ui.add_space(20.0);
+                        ui.label("Offer".to_string());
+                    });
+                });
+                columns[3].vertical_centered(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                            2.0,
+                            Color32::from_rgb(255, 0, 0),
+                        );
+                        ui.add_space(20.0);
+                        ui.label("Rejected".to_string());
+                        ui.add_space(10.0);
+                    });
+                });
+            });
         });
     }
 }
@@ -282,9 +314,6 @@ impl JobApp {
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading(APP_NAME);
-            ui.separator();
-
             ui.horizontal(|ui| {
                 self.add_search_box(ui);
                 self.add_refresh_button(ui);
@@ -294,7 +323,6 @@ impl eframe::App for JobApp {
             ui.horizontal(|ui| {
                 self.add_job_app_input_form(ui);
             });
-            ui.separator();
 
             ui.horizontal(|ui| {
                 self.add_summary_stats(ui);
@@ -309,6 +337,7 @@ impl eframe::App for JobApp {
             // ----------------------------
             let mut to_remove: Option<usize> = None;
             let mut to_update_status: Option<(u32, JobStatus)> = None;
+            let mut to_update_source: Option<(u32, JobSource)> = None;
             let mut to_update_timestamp: Option<(u32, chrono::DateTime<chrono::Local>)> = None;
             let mut to_update_company: Option<(u32, String)> = None;
 
@@ -436,6 +465,26 @@ impl eframe::App for JobApp {
                                     }
                                 });
 
+                            // Source
+                            let mut selected_source =
+                                job.source.as_ref().unwrap_or(&JobSource::LinkedIn).clone();
+                            egui::ComboBox::from_id_source(format!("source_{}", i))
+                                .selected_text(selected_source.to_string())
+                                .show_ui(ui, |ui| {
+                                    for src in JobSource::iter() {
+                                        if ui
+                                            .selectable_value(
+                                                &mut selected_source,
+                                                src.clone(),
+                                                src.to_string(),
+                                            )
+                                            .clicked()
+                                        {
+                                            to_update_source = Some((job.id, src));
+                                        }
+                                    }
+                                });
+
                             // ---- Delete button ----
                             if ui.button("Delete").clicked() {
                                 to_remove = Some(i);
@@ -451,6 +500,9 @@ impl eframe::App for JobApp {
             // ----------------------------
             if let Some((id, new_status)) = to_update_status {
                 self.store.update_status(id, new_status).unwrap();
+            }
+            if let Some((id, new_source)) = to_update_source {
+                self.store.update_source(id, new_source).unwrap();
             }
             if let Some((id, new_ts)) = to_update_timestamp {
                 self.store.update_timestamp(id, new_ts.into()).unwrap();

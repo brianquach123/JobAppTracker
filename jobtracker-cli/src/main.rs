@@ -9,7 +9,7 @@ fn main() {
         let company = args[2].clone();
         let role = args.get(3).unwrap_or(&"Unknown".to_string()).clone();
         let location = args.get(4).unwrap_or(&"Unknown".to_string()).clone();
-        let _ = store.add_job(company, role, location);
+        let _ = store.add_job(company, role, location, "CLI_version".to_string());
         println!("Job added!");
     }
 

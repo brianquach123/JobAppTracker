@@ -7,6 +7,7 @@ use std::fmt;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Read;
+use std::str::FromStr;
 use strum_macros::EnumIter;
 
 pub const APP_NAME: &str = "Job Application Tracker";
@@ -65,6 +66,43 @@ impl fmt::Display for JobStatus {
     }
 }
 
+#[derive(Default, EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum JobSource {
+    Recruiter,
+    LinkedIn,
+    Monster,
+    Indeed,
+    #[default]
+    NotProvided,
+}
+
+impl fmt::Display for JobSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            JobSource::LinkedIn => write!(f, "LinkedIn"),
+            JobSource::Monster => write!(f, "Monster"),
+            JobSource::Indeed => write!(f, "Indeed"),
+            JobSource::Recruiter => write!(f, "Recruiter"),
+            JobSource::NotProvided => write!(f, "Not provided"),
+        }
+    }
+}
+
+impl FromStr for JobSource {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "linkedIn" => Ok(JobSource::LinkedIn),
+            "monster" => Ok(JobSource::Monster),
+            "indeed" => Ok(JobSource::Indeed),
+            "recruiter" => Ok(JobSource::Recruiter),
+            _ => Ok(JobSource::NotProvided),
+        }
+    }
+}
+
 /// Representation of a job application entered by the user.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job {
@@ -83,10 +121,18 @@ pub struct Job {
     /// value of this is set when the user clicks the button
     /// to add a new application to the tracker.
     pub timestamp: DateTime<Utc>,
+    /// Where this job application was discovered.
+    pub source: Option<JobSource>,
 }
 
 impl Job {
-    pub fn new(id: u32, company: String, role: String, new_role_location: String) -> Self {
+    pub fn new(
+        id: u32,
+        company: String,
+        role: String,
+        new_role_location: String,
+        new_source: String,
+    ) -> Self {
         Self {
             id,
             company,
@@ -94,6 +140,7 @@ impl Job {
             role_location: Some(new_role_location),
             status: JobStatus::Applied,
             timestamp: Utc::now(),
+            source: Some(new_source.parse().unwrap()),
         }
     }
 
@@ -191,10 +238,16 @@ impl JobStore {
         company: String,
         role: String,
         new_role_location: String,
+        new_source: String,
     ) -> Result<Vec<Job>, Error> {
         let new_job_id = self.jobs.iter().map(|a| a.id).max().unwrap_or(0) + 1;
-        self.jobs
-            .push(Job::new(new_job_id, company, role, new_role_location));
+        self.jobs.push(Job::new(
+            new_job_id,
+            company,
+            role,
+            new_role_location,
+            new_source,
+        ));
         save(&self.jobs)?;
         Ok(self.jobs.clone())
     }
@@ -215,6 +268,14 @@ impl JobStore {
     pub fn update_status(&mut self, id: u32, new_status: JobStatus) -> Result<Vec<Job>, Error> {
         if let Some(job) = self.jobs.iter_mut().find(|j| j.id == id) {
             job.status = new_status;
+            save(&self.jobs)?;
+        }
+        Ok(self.jobs.clone())
+    }
+
+    pub fn update_source(&mut self, id: u32, new_source: JobSource) -> Result<Vec<Job>, Error> {
+        if let Some(job) = self.jobs.iter_mut().find(|j| j.id == id) {
+            job.source = Some(new_source);
             save(&self.jobs)?;
         }
         Ok(self.jobs.clone())
