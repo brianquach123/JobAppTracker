@@ -133,11 +133,33 @@ pub fn load() -> Result<Vec<Job>> {
 
 #[derive(Default, Debug)]
 pub struct SummaryCounts {
+    pub total: usize,
     pub rejected: usize,
     pub ghosted: usize,
     pub applied: usize,
     pub interviews: usize,
     pub offers: usize,
+}
+
+impl fmt::Display for SummaryCounts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let padding = " ".repeat(20);
+        write!(f, "Total Applications: {}", self.total)?;
+        write!(f, "{padding}Applied: {}", self.applied)?;
+        write!(f, "{padding}Rejected: {}", self.rejected)?;
+        write!(f, "{padding}Ghosted: {}", self.ghosted)?;
+        write!(f, "{padding}Interviews: {}", self.interviews)?;
+        write!(
+            f,
+            "{padding}Rejection Rate: {:.2}%",
+            (self.rejected as f32 / self.total as f32) * 100.0
+        )?;
+        write!(
+            f,
+            "{padding}Interview Rate: {:.2}%",
+            (self.interviews as f32 / self.total as f32) * 100.0
+        )
+    }
 }
 
 #[derive(Default, Debug)]
@@ -147,11 +169,12 @@ pub struct JobStore {
 }
 
 impl JobStore {
-    pub fn calculate_summary_stats(&mut self) -> Result<usize, Error> {
+    pub fn calculate_summary_stats(&mut self) -> Result<(), Error> {
         // TODO: Add a periodic check for this? dont need to iterate every frame.
         // Reset counts to account for the egui update() tick
         self.summary_stats = SummaryCounts::default();
         for job in &self.jobs {
+            self.summary_stats.total += 1;
             match job.status {
                 JobStatus::Rejected => self.summary_stats.rejected += 1,
                 JobStatus::Ghosted => self.summary_stats.ghosted += 1,
@@ -160,7 +183,7 @@ impl JobStore {
                 JobStatus::Offer => self.summary_stats.offers += 1,
             }
         }
-        Ok(self.jobs.len())
+        Ok(())
     }
 
     pub fn add_job(

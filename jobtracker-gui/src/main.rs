@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use chrono::{NaiveDate, Utc};
 use chrono_tz::America::New_York;
-use eframe::egui::{self, TextEdit, Ui};
+use eframe::egui::{self, Align, Layout, TextEdit, Ui};
 use eframe::egui::{Color32, Stroke};
 use egui_plot::PlotPoint;
 use egui_plot::{Bar, BarChart, Legend, Plot, Text};
@@ -115,42 +115,15 @@ impl JobApp {
     }
 
     fn add_summary_stats(&mut self, ui: &mut Ui) {
-        let total_apps = self.store.calculate_summary_stats().unwrap();
-
-        ui.horizontal(|ui| {
-            ui.label(format!("Total Applications: {}", total_apps));
-            ui.add_space(20.0);
-            ui.label(format!("Applied: {}", self.store.summary_stats.applied));
-            ui.add_space(20.0);
-            ui.label(format!("Rejected: {}", self.store.summary_stats.rejected));
-            ui.add_space(20.0);
-            ui.label(format!("Ghosted: {}", self.store.summary_stats.ghosted));
-            ui.add_space(20.0);
-            ui.label(format!(
-                "Interview: {}",
-                self.store.summary_stats.interviews
-            ));
-            ui.add_space(20.0);
-            ui.label(format!("Offers: {}", self.store.summary_stats.offers));
-            ui.add_space(20.0);
-            ui.label(format!(
-                "Rejection Rate: {:.2}%",
-                (self.store.summary_stats.rejected as f32 / total_apps as f32) * 100.0
-            ));
-            ui.add_space(20.0);
-            ui.label(format!(
-                "Interview Rate: {:.2}%",
-                (self.store.summary_stats.interviews as f32 / total_apps as f32) * 100.0
-            ));
+        self.store.calculate_summary_stats().unwrap();
+        ui.with_layout(Layout::top_down(Align::Center), |ui| {
+            ui.label(self.store.summary_stats.to_string());
         });
     }
 
     fn add_bar_chart_stats(&mut self, ui: &mut Ui) {
-        // ----------------------------
-        // Weekly bar chart (last 7 days)
-        // ----------------------------
-        let today = Utc::now();
         // Find earliest application date (fallback: today if no jobs yet)
+        let today = Utc::now();
         let earliest_date = self
             .store
             .jobs
@@ -186,83 +159,83 @@ impl JobApp {
         let mut sorted_dates: Vec<NaiveDate> = date_to_jobs.keys().cloned().collect();
         sorted_dates.sort();
 
-        ui.label("# of Applications:");
-        Plot::new("applications_chart")
-            .legend(Legend::default())
-            .view_aspect(3.5)
-            .include_x(-0.5)
-            .include_x(sorted_dates.len() as f64 - 0.5)
-            .include_y(0.0)
-            .show_grid(true)
-            .height(250.0)
-            .show(ui, |plot_ui| {
-                for (date_idx, date) in sorted_dates.iter().enumerate() {
-                    if let Some(jobs) = date_to_jobs.get(date) {
-                        let x_position = date_idx as f64;
+        ui.with_layout(Layout::top_down(Align::Center), |ui| {
+            ui.label("Job Application Timeline:");
+            Plot::new("applications_chart")
+                .legend(Legend::default())
+                .include_y(0.0)
+                .show_grid(true)
+                .height(250.0)
+                .show(ui, |plot_ui| {
+                    for (date_idx, date) in sorted_dates.iter().enumerate() {
+                        if let Some(jobs) = date_to_jobs.get(date) {
+                            let x_position = date_idx as f64;
 
-                        // Create a bar for this date with height = number of jobs
-                        for (k, j) in jobs.iter().enumerate() {
-                            let is_selected = self.selected_company.as_ref() == Some(&j.company);
-                            let stroke = if is_selected {
-                                Stroke::new(3.0, Color32::GOLD) // thicker border
-                            } else {
-                                Stroke::new(0.3, Color32::BLACK) // normal border
-                            };
+                            // Create a bar for this date with height = number of jobs
+                            for (k, j) in jobs.iter().enumerate() {
+                                let is_selected =
+                                    self.selected_company.as_ref() == Some(&j.company);
+                                let stroke = if is_selected {
+                                    Stroke::new(3.0, Color32::GOLD) // thicker border
+                                } else {
+                                    Stroke::new(0.3, Color32::BLACK) // normal border
+                                };
 
-                            if self.search_text.is_empty() {
-                                self.selected_company = None;
+                                if self.search_text.is_empty() {
+                                    self.selected_company = None;
+                                }
+
+                                let bar = Bar::new(x_position, 1_f64)
+                                    .width(0.8)
+                                    .base_offset(k as f64) // offset to stack values
+                                    .fill(j.get_status_color_mapping())
+                                    .stroke(stroke)
+                                    .name(format!("{}\n{}", j.company, j.role));
+                                plot_ui.bar_chart(BarChart::new(vec![bar]));
                             }
 
-                            let bar = Bar::new(x_position, 1_f64)
-                                .width(0.8)
-                                .base_offset(k as f64) // offset to stack values
-                                .fill(j.get_status_color_mapping())
-                                .stroke(stroke)
-                                .name(format!("{}\n{}", j.company, j.role));
-                            plot_ui.bar_chart(BarChart::new(vec![bar]));
+                            // Add date label below the bar
+                            plot_ui.text(
+                                Text::new(
+                                    PlotPoint::new(x_position, -1.0),
+                                    date.format("%m/%d").to_string(),
+                                )
+                                .color(Color32::GRAY)
+                                .anchor(egui::Align2::CENTER_TOP),
+                            );
                         }
-
-                        // Add date label below the bar
-                        plot_ui.text(
-                            Text::new(
-                                PlotPoint::new(x_position, -1.0),
-                                date.format("%m/%d").to_string(),
-                            )
-                            .color(Color32::GRAY)
-                            .anchor(egui::Align2::CENTER_TOP),
-                        );
                     }
-                }
 
-                // Selectable chart entries that'll dynamically search for the app clicked
-                if plot_ui.response().clicked() {
-                    if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
-                        let x_idx = pointer_pos.x.round() as usize;
-                        if let Some(date) = sorted_dates.get(x_idx) {
-                            if let Some(jobs) = date_to_jobs.get(date) {
-                                // Find the "stack level" based on y coordinate
-                                let stack_idx = pointer_pos.y.floor() as usize;
-                                if let Some(job) = jobs.get(stack_idx) {
-                                    // Update search text to clicked company
-                                    self.search_text = job.company.clone();
-                                    self.selected_company = Some(job.company.clone());
+                    // Selectable chart entries that'll dynamically search for the app clicked
+                    if plot_ui.response().clicked() {
+                        if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
+                            let x_idx = pointer_pos.x.round() as usize;
+                            if let Some(date) = sorted_dates.get(x_idx) {
+                                if let Some(jobs) = date_to_jobs.get(date) {
+                                    // Find the "stack level" based on y coordinate
+                                    let stack_idx = pointer_pos.y.floor() as usize;
+                                    if let Some(job) = jobs.get(stack_idx) {
+                                        // Update search text to clicked company
+                                        self.search_text = job.company.clone();
+                                        self.selected_company = Some(job.company.clone());
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Add y-axis labels for count
-                if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
-                    for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
-                        plot_ui.text(
-                            Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
-                                .color(Color32::GRAY)
-                                .anchor(egui::Align2::RIGHT_CENTER),
-                        );
+                    // Add y-axis labels for count
+                    if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
+                        for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
+                            plot_ui.text(
+                                Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
+                                    .color(Color32::GRAY)
+                                    .anchor(egui::Align2::RIGHT_CENTER),
+                            );
+                        }
                     }
-                }
-            });
+                });
+        });
         // ----------------------------
         // Bar Chart Legend
         // ----------------------------
