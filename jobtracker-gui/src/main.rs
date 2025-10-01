@@ -68,17 +68,17 @@ impl JobApp {
     }
 
     fn add_refresh_button(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
+        ui.horizontal(|ui|{
             if ui.add(egui::Button::new("Refresh")).clicked() {
-                let _ = self.store.list_jobs();
-                self.last_refresh = Utc::now();
-            }
-            ui.label(format!(
-                "Last Refresh: {}",
-                self.last_refresh
-                    .with_timezone(&New_York)
-                    .format("%Y-%m-%d %H:%M:%S")
-            ));
+            let _ = self.store.list_jobs();
+            self.last_refresh = Utc::now();
+        }
+        ui.label(format!(
+            "Last Refresh: {}",
+            self.last_refresh
+                .with_timezone(&New_York)
+                .format("%Y-%m-%d %H:%M:%S")
+        ));
         });
     }
 
