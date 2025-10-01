@@ -132,14 +132,9 @@ impl JobApp {
         });
     }
 
-    fn add_summary_stats(&mut self, ui: &mut Ui) {
-        self.store.calculate_summary_stats().unwrap();
-        ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            ui.label(self.store.summary_stats.to_string());
-        });
-    }
-
     fn add_bar_chart_stats(&mut self, ui: &mut Ui) {
+        self.store.calculate_summary_stats().unwrap();
+
         // Find earliest application date (fallback: today if no jobs yet)
         let today = Utc::now();
         let earliest_date = self
@@ -178,11 +173,20 @@ impl JobApp {
         sorted_dates.sort();
 
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            ui.label("Application Timeline");
+            let padding = " ".repeat(20);
+            ui.label(format!(
+                "Timeline:\n\nRejection: {:.2}%{padding}Interview: {:.2}%",
+                (self.store.summary_stats.rejected as f32 / self.store.summary_stats.total as f32)
+                    * 100.0,
+                (self.store.summary_stats.interviews as f32
+                    / self.store.summary_stats.total as f32)
+                    * 100.0
+            ));
+
             Plot::new("applications_chart")
                 .legend(Legend::default())
                 .include_y(0.0)
-                .show_grid(true)
+                .show_grid(false)
                 .height(250.0)
                 .show(ui, |plot_ui| {
                     for (date_idx, date) in sorted_dates.iter().enumerate() {
@@ -215,7 +219,7 @@ impl JobApp {
                             // Add date label below the bar
                             plot_ui.text(
                                 Text::new(
-                                    PlotPoint::new(x_position, -1.0),
+                                    PlotPoint::new(x_position, -0.5),
                                     date.format("%m/%d").to_string(),
                                 )
                                 .color(Color32::GRAY)
@@ -242,23 +246,23 @@ impl JobApp {
                         }
                     }
 
-                    // Add y-axis labels for count
-                    if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
-                        for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
-                            plot_ui.text(
-                                Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
-                                    .color(Color32::GRAY)
-                                    .anchor(egui::Align2::RIGHT_CENTER),
-                            );
-                        }
-                    }
+                    // // Add y-axis labels for count
+                    // if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
+                    //     for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
+                    //         plot_ui.text(
+                    //             Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
+                    //                 .color(Color32::GRAY)
+                    //                 .anchor(egui::Align2::RIGHT_CENTER),
+                    //         );
+                    //     }
+                    // }
                 });
         });
         // ----------------------------
         // Bar Chart Legend
         // ----------------------------
         ui.horizontal(|ui| {
-            ui.columns(4, |columns| {
+            ui.columns(5, |columns| {
                 columns[0].vertical_centered(|ui| {
                     ui.horizontal(|ui| {
                         ui.painter().rect_filled(
@@ -267,7 +271,7 @@ impl JobApp {
                             Color32::from_rgb(65, 105, 225),
                         );
                         ui.add_space(20.0);
-                        ui.label("Applied".to_string());
+                        ui.label(format!("Applied: {}", self.store.summary_stats.total));
                         ui.add_space(10.0);
                     });
                 });
@@ -279,7 +283,10 @@ impl JobApp {
                             Color32::from_rgb(0, 255, 255),
                         );
                         ui.add_space(20.0);
-                        ui.label("Interview".to_string());
+                        ui.label(format!(
+                            "Interview: {}",
+                            self.store.summary_stats.interviews
+                        ));
                         ui.add_space(10.0);
                     });
                 });
@@ -291,7 +298,7 @@ impl JobApp {
                             Color32::from_rgb(0, 255, 0),
                         );
                         ui.add_space(20.0);
-                        ui.label("Offer".to_string());
+                        ui.label(format!("Offer: {}", self.store.summary_stats.offers));
                     });
                 });
                 columns[3].vertical_centered(|ui| {
@@ -302,7 +309,19 @@ impl JobApp {
                             Color32::from_rgb(255, 0, 0),
                         );
                         ui.add_space(20.0);
-                        ui.label("Rejected".to_string());
+                        ui.label(format!("Rejected: {}", self.store.summary_stats.rejected));
+                        ui.add_space(10.0);
+                    });
+                });
+                columns[4].vertical_centered(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                            2.0,
+                            Color32::from_rgb(128, 128, 128),
+                        );
+                        ui.add_space(20.0);
+                        ui.label(format!("Ghosted: {}", self.store.summary_stats.ghosted));
                         ui.add_space(10.0);
                     });
                 });
@@ -314,22 +333,14 @@ impl JobApp {
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                self.add_search_box(ui);
-                self.add_refresh_button(ui);
-            });
+            self.add_bar_chart_stats(ui);
             ui.separator();
 
             ui.horizontal(|ui| {
                 self.add_job_app_input_form(ui);
+                self.add_search_box(ui);
+                self.add_refresh_button(ui);
             });
-
-            ui.horizontal(|ui| {
-                self.add_summary_stats(ui);
-            });
-            ui.separator();
-
-            self.add_bar_chart_stats(ui);
             ui.separator();
 
             // ----------------------------
