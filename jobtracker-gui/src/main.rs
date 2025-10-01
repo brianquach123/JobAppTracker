@@ -58,77 +58,80 @@ struct JobApp {
 
 impl JobApp {
     fn add_search_box(&mut self, ui: &mut Ui) {
-        ui.label("Search:");
-        ui.add(
-            TextEdit::singleline(&mut self.search_text).desired_width(ui.available_width() * 0.3),
-        );
+        ui.horizontal(|ui| {
+            ui.label("Search:");
+            ui.add(
+                TextEdit::singleline(&mut self.search_text)
+                    .desired_width(ui.available_width() * 0.3),
+            );
+        });
     }
 
     fn add_refresh_button(&mut self, ui: &mut Ui) {
-        if ui.add(egui::Button::new("Refresh")).clicked() {
-            let _ = self.store.list_jobs();
-            self.last_refresh = Utc::now();
-        }
-        ui.label(format!(
-            "Last Refresh: {}",
-            self.last_refresh
-                .with_timezone(&New_York)
-                .format("%Y-%m-%d %H:%M:%S")
-        ));
+        ui.horizontal(|ui| {
+            if ui.add(egui::Button::new("Refresh")).clicked() {
+                let _ = self.store.list_jobs();
+                self.last_refresh = Utc::now();
+            }
+            ui.label(format!(
+                "Last Refresh: {}",
+                self.last_refresh
+                    .with_timezone(&New_York)
+                    .format("%Y-%m-%d %H:%M:%S")
+            ));
+        });
     }
 
     fn add_job_app_input_form(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                let field_width = ui.available_width() / 4.0;
-                ui.horizontal(|ui| {
-                    ui.label("Company:");
-                    ui.add_sized(
-                        [field_width, 20.0],
-                        TextEdit::singleline(&mut self.new_company),
-                    );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Role:");
-                    ui.add_sized(
-                        [field_width, 20.0],
-                        TextEdit::singleline(&mut self.new_role),
-                    );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Location:");
-                    ui.add_sized(
-                        [field_width, 20.0],
-                        TextEdit::singleline(&mut self.new_role_location),
-                    );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Source:");
-                    ui.add_sized(
-                        [field_width, 20.0],
-                        TextEdit::singleline(&mut self.new_source),
-                    );
-                });
-
-                if ui.button("Add").clicked()
-                    && !self.new_company.is_empty()
-                    && !self.new_role.is_empty()
-                    && !self.new_role_location.is_empty()
-                    && !self.new_source.is_empty()
-                {
-                    self.store
-                        .add_job(
-                            self.new_company.clone(),
-                            self.new_role.clone(),
-                            self.new_role_location.clone(),
-                            self.new_source.clone(),
-                        )
-                        .unwrap();
-                    self.new_company.clear();
-                    self.new_role.clear();
-                    self.new_role_location.clear();
-                }
+        ui.vertical(|ui| {
+            let field_width = ui.available_width() / 4.0;
+            ui.horizontal(|ui| {
+                ui.label("Company:");
+                ui.add_sized(
+                    [field_width, 20.0],
+                    TextEdit::singleline(&mut self.new_company),
+                );
             });
+            ui.horizontal(|ui| {
+                ui.label("Role:");
+                ui.add_sized(
+                    [field_width, 20.0],
+                    TextEdit::singleline(&mut self.new_role),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label("Location:");
+                ui.add_sized(
+                    [field_width, 20.0],
+                    TextEdit::singleline(&mut self.new_role_location),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label("Source:");
+                ui.add_sized(
+                    [field_width, 20.0],
+                    TextEdit::singleline(&mut self.new_source),
+                );
+            });
+
+            if ui.button("Add").clicked()
+                && !self.new_company.is_empty()
+                && !self.new_role.is_empty()
+                && !self.new_role_location.is_empty()
+                && !self.new_source.is_empty()
+            {
+                self.store
+                    .add_job(
+                        self.new_company.clone(),
+                        self.new_role.clone(),
+                        self.new_role_location.clone(),
+                        self.new_source.clone(),
+                    )
+                    .unwrap();
+                self.new_company.clear();
+                self.new_role.clear();
+                self.new_role_location.clear();
+            }
         });
     }
 
@@ -245,23 +248,12 @@ impl JobApp {
                             }
                         }
                     }
-
-                    // // Add y-axis labels for count
-                    // if let Some(max_jobs) = date_to_jobs.values().map(|v| v.len()).max() {
-                    //     for count in (0..=max_jobs).step_by(if max_jobs > 10 { 2 } else { 1 }) {
-                    //         plot_ui.text(
-                    //             Text::new(PlotPoint::new(-0.5, count as f64), count.to_string())
-                    //                 .color(Color32::GRAY)
-                    //                 .anchor(egui::Align2::RIGHT_CENTER),
-                    //         );
-                    //     }
-                    // }
                 });
         });
         // ----------------------------
         // Bar Chart Legend
         // ----------------------------
-        ui.horizontal(|ui| {
+        ui.with_layout(Layout::top_down(Align::Center), |ui| {
             ui.columns(5, |columns| {
                 columns[0].vertical_centered(|ui| {
                     ui.horizontal(|ui| {
@@ -336,10 +328,14 @@ impl eframe::App for JobApp {
             self.add_bar_chart_stats(ui);
             ui.separator();
 
-            ui.horizontal(|ui| {
-                self.add_job_app_input_form(ui);
-                self.add_search_box(ui);
-                self.add_refresh_button(ui);
+            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                ui.horizontal(|ui| {
+                    self.add_job_app_input_form(ui);
+                    ui.vertical(|ui| {
+                        self.add_search_box(ui);
+                        self.add_refresh_button(ui);
+                    });
+                });
             });
             ui.separator();
 
