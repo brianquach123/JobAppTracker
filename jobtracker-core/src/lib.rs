@@ -21,8 +21,8 @@ pub const COLUMN_HEADER_AND_WIDTH_FIELDS: [(&str, f32); 8] = [
     ("Role", 120.0),
     ("Location", 100.0),
     ("Status", 100.0),
-    ("Action", 60.0),
     ("Source", 60.0),
+    ("Action", 60.0),
 ];
 
 const FILE: &str = "jobtrack.json";
