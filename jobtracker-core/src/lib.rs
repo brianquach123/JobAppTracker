@@ -1,14 +1,13 @@
 mod job;
 mod job_app;
+mod job_source;
+mod job_status;
 mod job_store;
 mod summary_counts;
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use eframe::egui::Color32;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
-use std::str::FromStr;
 use strum_macros::EnumIter;
 
 pub const APP_NAME: &str = "Job Application Tracker";
@@ -98,28 +97,6 @@ pub enum JobStatus {
     Ghosted,
 }
 
-impl fmt::Display for JobStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Applied => {
-                write!(f, "Applied")
-            }
-            JobStatus::Interview => {
-                write!(f, "Interview")
-            }
-            JobStatus::Offer => {
-                write!(f, "Offer")
-            }
-            JobStatus::Rejected => {
-                write!(f, "Rejected")
-            }
-            JobStatus::Ghosted => {
-                write!(f, "Ghosted")
-            }
-        }
-    }
-}
-
 #[derive(Default, EnumIter, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum JobSource {
     Recruiter,
@@ -130,32 +107,4 @@ pub enum JobSource {
     NotProvided,
     Talent,
     Glassdoor,
-}
-
-impl fmt::Display for JobSource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            JobSource::LinkedIn => write!(f, "LinkedIn"),
-            JobSource::Monster => write!(f, "Monster"),
-            JobSource::Indeed => write!(f, "Indeed"),
-            JobSource::Recruiter => write!(f, "Recruiter"),
-            JobSource::NotProvided => write!(f, "Not provided"),
-            JobSource::Talent => write!(f, "Talent.com"),
-            JobSource::Glassdoor => write!(f, "Glassdoor"),
-        }
-    }
-}
-
-impl FromStr for JobSource {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.to_lowercase();
-        match s.as_str() {
-            "linkedIn" => Ok(JobSource::LinkedIn),
-            "monster" => Ok(JobSource::Monster),
-            "indeed" => Ok(JobSource::Indeed),
-            "recruiter" => Ok(JobSource::Recruiter),
-            _ => Ok(JobSource::NotProvided),
-        }
-    }
 }
