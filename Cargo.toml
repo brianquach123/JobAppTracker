@@ -1,6 +1,5 @@
 [workspace]
 members = [
     "jobtracker-core",
-    "jobtracker-cli",
-    "jobtracker-gui",
+    "jobtracker",
 ]

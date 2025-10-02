@@ -128,6 +128,8 @@ pub enum JobSource {
     Indeed,
     #[default]
     NotProvided,
+    Talent,
+    Glassdoor,
 }
 
 impl fmt::Display for JobSource {
@@ -138,6 +140,8 @@ impl fmt::Display for JobSource {
             JobSource::Indeed => write!(f, "Indeed"),
             JobSource::Recruiter => write!(f, "Recruiter"),
             JobSource::NotProvided => write!(f, "Not provided"),
+            JobSource::Talent => write!(f, "Talent.com"),
+            JobSource::Glassdoor => write!(f, "Glassdoor"),
         }
     }
 }
