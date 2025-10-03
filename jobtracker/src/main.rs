@@ -1,8 +1,14 @@
 use chrono::Utc;
-use jobtracker_core::{JobApp, APP_NAME};
+use eframe::egui::ViewportBuilder;
+use jobtracker_core::{JobApp, APP_NAME, WINDOW_HEIGHT, WINDOW_WIDTH};
 
 fn main() -> eframe::Result<()> {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: ViewportBuilder::default()
+            .with_inner_size([WINDOW_WIDTH, WINDOW_HEIGHT])
+            .with_resizable(true),
+        ..Default::default()
+    };
 
     let mut job_app = JobApp {
         last_refresh: Utc::now(),

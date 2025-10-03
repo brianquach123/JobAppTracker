@@ -48,55 +48,59 @@ impl JobApp {
     }
 
     fn add_job_app_input_form(&mut self, ui: &mut Ui) {
-        ui.vertical(|ui| {
-            let field_width = ui.available_width() / 4.0;
-            ui.horizontal(|ui| {
-                ui.label("Company:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_company),
-                );
-            });
-            ui.horizontal(|ui| {
-                ui.label("Role:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_role),
-                );
-            });
-            ui.horizontal(|ui| {
-                ui.label("Location:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_role_location),
-                );
-            });
-            ui.horizontal(|ui| {
-                ui.label("Source:");
-                ui.add_sized(
-                    [field_width, 20.0],
-                    TextEdit::singleline(&mut self.new_source),
-                );
-            });
+        ui.with_layout(Layout::top_down(Align::Center), |ui| {
+            ui.vertical(|ui| {
+                let label_width = 80.0;
+                let field_width = (ui.available_width() / 2.0) - label_width - 10.0;
 
-            if ui.button("Add").clicked()
-                && !self.new_company.is_empty()
-                && !self.new_role.is_empty()
-                && !self.new_role_location.is_empty()
-                && !self.new_source.is_empty()
-            {
-                self.store
-                    .add_job(
-                        self.new_company.clone(),
-                        self.new_role.clone(),
-                        self.new_role_location.clone(),
-                        self.new_source.clone(),
-                    )
-                    .unwrap();
-                self.new_company.clear();
-                self.new_role.clear();
-                self.new_role_location.clear();
-            }
+                ui.horizontal(|ui| {
+                    ui.add_sized([label_width, 20.0], egui::Label::new("Company:"));
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_company),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.add_sized([label_width, 20.0], egui::Label::new("Role:"));
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_role),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.add_sized([label_width, 20.0], egui::Label::new("Location:"));
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_role_location),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.add_sized([label_width, 20.0], egui::Label::new("Source:"));
+                    ui.add_sized(
+                        [field_width, 20.0],
+                        TextEdit::singleline(&mut self.new_source),
+                    );
+                });
+
+                if ui.button("Add").clicked()
+                    && !self.new_company.is_empty()
+                    && !self.new_role.is_empty()
+                    && !self.new_role_location.is_empty()
+                    && !self.new_source.is_empty()
+                {
+                    self.store
+                        .add_job(
+                            self.new_company.clone(),
+                            self.new_role.clone(),
+                            self.new_role_location.clone(),
+                            self.new_source.clone(),
+                        )
+                        .unwrap();
+                    self.new_company.clear();
+                    self.new_role.clear();
+                    self.new_role_location.clear();
+                }
+            });
         });
     }
 
