@@ -76,6 +76,7 @@ impl JobStore {
     }
 
     pub fn list_jobs(&mut self) -> Result<Vec<Job>, Error> {
+        // TODO? Handle ghosted apps here? (cfg'able duration value)
         Ok(self.jobs.clone())
     }
 

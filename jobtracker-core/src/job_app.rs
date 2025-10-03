@@ -154,7 +154,7 @@ impl JobApp {
             Plot::new("applications_chart")
                 .legend(Legend::default())
                 .include_y(0.0)
-                .show_grid(false)
+                .show_grid(true)
                 .height(250.0)
                 .show(ui, |plot_ui| {
                     for (date_idx, date) in sorted_dates.iter().enumerate() {
@@ -185,14 +185,16 @@ impl JobApp {
                             }
 
                             // Add date label below the bar
-                            plot_ui.text(
-                                Text::new(
-                                    PlotPoint::new(x_position, -0.5),
-                                    date.format("%m/%d").to_string(),
-                                )
-                                .color(Color32::GRAY)
-                                .anchor(egui::Align2::CENTER_TOP),
-                            );
+                            if date_idx % 4 == 0 {
+                                plot_ui.text(
+                                    Text::new(
+                                        PlotPoint::new(x_position, -0.5),
+                                        date.format("%m/%d").to_string(),
+                                    )
+                                    .color(Color32::GRAY)
+                                    .anchor(egui::Align2::CENTER_TOP),
+                                );
+                            }
                         }
                     }
 
