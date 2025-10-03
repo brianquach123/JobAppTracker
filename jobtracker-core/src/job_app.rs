@@ -221,9 +221,9 @@ impl JobApp {
                     }
                 });
         });
-        // ----------------------------
-        // Bar Chart Legend
-        // ----------------------------
+    }
+
+    fn add_bar_chart_legend(&mut self, ui: &mut Ui) {
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
             ui.columns(5, |columns| {
                 columns[0].vertical_centered(|ui| {
@@ -291,12 +291,22 @@ impl JobApp {
             });
         });
     }
+
+    fn write_header_row(ui: &mut Ui) {
+        for (idx, header_field) in COLUMN_HEADER_AND_WIDTH_FIELDS.iter().enumerate() {
+            ui.add_sized(
+                [header_field.1, DEFAULT_FIELD_ELEMENT_HEIGHT],
+                egui::Label::new(COLUMN_HEADER_AND_WIDTH_FIELDS[idx].0),
+            );
+        }
+    }
 }
 
 impl eframe::App for JobApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.add_bar_chart_stats(ui);
+            self.add_bar_chart_legend(ui);
             ui.separator();
 
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
@@ -331,6 +341,8 @@ impl eframe::App for JobApp {
                                 egui::Label::new(COLUMN_HEADER_AND_WIDTH_FIELDS[idx].0),
                             );
                         }
+                        JobApp::write_header_row(ui);
+
                         ui.end_row();
 
                         // Rows
