@@ -13,6 +13,7 @@ impl fmt::Display for JobSource {
             JobSource::NotProvided => write!(f, "Not provided"),
             JobSource::Talent => write!(f, "Talent.com"),
             JobSource::Glassdoor => write!(f, "Glassdoor"),
+            JobSource::ZipRecruiter => write!(f, "ZipRecruiter"),
         }
     }
 }
@@ -28,6 +29,7 @@ impl FromStr for JobSource {
             "recruiter" => Ok(JobSource::Recruiter),
             "talent.com" => Ok(JobSource::Talent),
             "glassdoor" => Ok(JobSource::Glassdoor),
+            "ziprecruiter" => Ok(JobSource::ZipRecruiter),
             _ => Ok(JobSource::NotProvided),
         }
     }

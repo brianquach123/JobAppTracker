@@ -334,15 +334,7 @@ impl eframe::App for JobApp {
                 .show(ui, |ui| {
                     egui::Grid::new("jobs_grid").striped(true).show(ui, |ui| {
                         // Header row
-                        for (idx, header_field) in COLUMN_HEADER_AND_WIDTH_FIELDS.iter().enumerate()
-                        {
-                            ui.add_sized(
-                                [header_field.1, DEFAULT_FIELD_ELEMENT_HEIGHT],
-                                egui::Label::new(COLUMN_HEADER_AND_WIDTH_FIELDS[idx].0),
-                            );
-                        }
                         JobApp::write_header_row(ui);
-
                         ui.end_row();
 
                         // Rows

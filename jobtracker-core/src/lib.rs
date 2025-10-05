@@ -107,4 +107,5 @@ pub enum JobSource {
     NotProvided,
     Talent,
     Glassdoor,
+    ZipRecruiter,
 }
