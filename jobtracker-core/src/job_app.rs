@@ -147,11 +147,10 @@ impl JobApp {
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
             let padding = " ".repeat(20);
             ui.label(format!(
-                "Timeline:\n\nRejection: {:.2}%{padding}Interview: {:.2}%",
+                "Timeline:\n\nRejection: {:.2}%{padding}Offer: {:.2}%",
                 (self.store.summary_stats.rejected as f32 / self.store.summary_stats.total as f32)
                     * 100.0,
-                (self.store.summary_stats.interviews as f32
-                    / self.store.summary_stats.total as f32)
+                (self.store.summary_stats.offers as f32 / self.store.summary_stats.total as f32)
                     * 100.0
             ));
 
