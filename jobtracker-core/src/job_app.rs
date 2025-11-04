@@ -225,7 +225,7 @@ impl JobApp {
 
     fn add_bar_chart_legend(&mut self, ui: &mut Ui) {
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            ui.columns(5, |columns| {
+            ui.columns(4, |columns| {
                 columns[0].vertical_centered(|ui| {
                     ui.horizontal(|ui| {
                         ui.painter().rect_filled(
@@ -247,7 +247,7 @@ impl JobApp {
                         );
                         ui.add_space(20.0);
                         ui.label(format!(
-                            "Interview: {}",
+                            "Interviews in progress: {}",
                             self.store.summary_stats.interviews
                         ));
                         ui.add_space(10.0);
@@ -276,18 +276,18 @@ impl JobApp {
                         ui.add_space(10.0);
                     });
                 });
-                columns[4].vertical_centered(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.painter().rect_filled(
-                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
-                            2.0,
-                            Color32::from_rgb(128, 128, 128),
-                        );
-                        ui.add_space(20.0);
-                        ui.label(format!("Ghosted: {}", self.store.summary_stats.ghosted));
-                        ui.add_space(10.0);
-                    });
-                });
+                // columns[4].vertical_centered(|ui| {
+                //     ui.horizontal(|ui| {
+                //         ui.painter().rect_filled(
+                //             egui::Rect::from_min_size(ui.cursor().min, egui::vec2(16.0, 16.0)),
+                //             2.0,
+                //             Color32::from_rgb(128, 128, 128),
+                //         );
+                //         ui.add_space(20.0);
+                //         ui.label(format!("Ghosted: {}", self.store.summary_stats.ghosted));
+                //         ui.add_space(10.0);
+                //     });
+                // });
             });
         });
     }
